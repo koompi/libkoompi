@@ -1,16 +1,21 @@
 use std::io::Error;
 use std::process::Command;
 use crate::helpers::get_bool_yesno;
+use getset::{Getters, MutGetters};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters, MutGetters)]
 pub struct DateTimeManager {
+   #[getset(get = "pub")]
    timezone: String,
    local_rtc: bool,
    can_ntp: bool,
+   #[getset(get = "pub")]
    ntp: bool,
    ntp_sync: bool,
+   #[getset(get = "pub")]
    time_usec: String,
    rtc_time_usec: String,
+   #[getset(get = "pub")]
    list_timezones: Vec<String>,
 }
 
@@ -79,40 +84,39 @@ impl DateTimeManager {
    }
 
    pub fn set_datetime(&mut self, datetime: &str) -> Result<bool, Error> {
+      let mut res = false;
       match Command::new("timedatectl").arg("set-time").arg(datetime).output() {
          Ok(output) => {
             if output.status.success() {
                self.time_usec = datetime.to_owned();
-               Ok(true)
+               res = true;
             } else if let Ok(stderr) = String::from_utf8(output.stderr) {
-               eprintln!("{}", stderr);
-               Ok(false) // error handling here
-            } else {
-               Ok(false)
+               eprintln!("{}", stderr); // error handling here
             }
          },
-         Err(err) => Ok(false) //eprintln!("{}", err), // error handling here
+         Err(err) => eprintln!("{}", err), // error handling here
       }
+      Ok(res)
    }
 
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
+      let mut res = false;
       match Command::new("timedatectl").arg("set-timezone").arg(tz).output() {
          Ok(output) => {
             if output.status.success() {
                self.timezone = tz.to_owned();
-               Ok(true)
+               res = true;
             } else if let Ok(stderr) = String::from_utf8(output.stderr) {
-               eprintln!("{}", stderr);
-               Ok(false) // error handling here
-            } else {
-               Ok(false)
+               eprintln!("{}", stderr); // error handling here
             }
          },
-         Err(err) => Ok(false) //eprintln!("{}", err), // error handling here
+         Err(err) => eprintln!("{}", err), // error handling here
       }
+      Ok(res)
    }
 
    pub fn set_ntp(&mut self, ntp: bool) -> Result<bool, Error> {
+      let mut res = false;
       match Command::new("timedatectl").arg("set-ntp").arg(format!("{}", ntp)).output() {
          Ok(output) => {
             if output.status.success() {
@@ -120,33 +124,30 @@ impl DateTimeManager {
 
                // system clock synchronized
                // self.ntp_sync = ntp;
-               Ok(true)
+               res = true;
             } else if let Ok(stderr) = String::from_utf8(output.stderr) {
-               eprintln!("{}", stderr);
-               Ok(false) // error handling here
-            } else {
-               Ok(false)
+               eprintln!("{}", stderr); // error handling here
             }
          },
-         Err(err) => Ok(false) //eprintln!("{}", err), // error handling here
+         Err(err) => eprintln!("{}", err), // error handling here
       }
+      Ok(res)
    }
 
    pub fn set_local_rtc(&mut self, local_rtc: bool) -> Result<bool, Error> {
+      let mut res = false;
       match Command::new("timedatectl").arg("set-local-rtc").arg(format!("{}", local_rtc)).output() {
          Ok(output) => {
             if output.status.success() {
                self.local_rtc = local_rtc;
-               Ok(true)
+               res = true;
             } else if let Ok(stderr) = String::from_utf8(output.stderr) {
-               eprintln!("{}", stderr);
-               Ok(false) // error handling here
-            } else {
-               Ok(false)
+               eprintln!("{}", stderr); // error handling here
             }
          },
-         Err(err) => Ok(false) //eprintln!("{}", err), // error handling here
+         Err(err) => eprintln!("{}", err), // error handling here
       }
+      Ok(res)
    }
 }
 
@@ -160,7 +161,7 @@ mod tests {
          Ok(mut dt_mn) => {
             if let Ok(res) = dt_mn.set_ntp(true) {
                if res {
-                  assert_eq!(dt_mn.ntp, true)
+                  assert_eq!(*dt_mn.ntp(), true)
                }
             }
          },

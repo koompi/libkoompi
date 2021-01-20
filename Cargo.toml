@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 dbus = "0.9"
+getset = "0.1"
 # network-manager = "0.11"
