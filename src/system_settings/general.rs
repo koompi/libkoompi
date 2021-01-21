@@ -36,7 +36,7 @@ fn reader(name: &str) -> Result<String> {
     }
 }
 
-fn writer(name: &str, data: &Theme) -> Result<()> {
+fn writer(name: &str, data: &ThemeManager) -> Result<()> {
     let mut file = File::create(name)?;
     match file.write_all(to_string_pretty(data).unwrap().as_bytes()) {
         Ok(_) => Ok(()),
