@@ -9,4 +9,6 @@ edition = "2018"
 [dependencies]
 dbus = "0.9"
 getset = "0.1"
+udev = "0.5.1"
+libmath = "0.2.1"
 # network-manager = "0.11"
