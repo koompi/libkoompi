@@ -9,4 +9,6 @@ edition = "2018"
 [dependencies]
 dbus = "0.9"
 getset = "0.1"
+toml = "0.5.8"
+serde = {version = "*" , features = ["derive"] }
 # network-manager = "0.11"
