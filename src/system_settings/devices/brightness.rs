@@ -2,13 +2,13 @@
 use crate::helpers::{get_property, set_device_path};
 use dbus::blocking::Connection;
 pub struct Brightness {
-    device: BDevice,
+    device: BrightnessDevice,
 }
 
 impl Brightness {
     pub fn new() -> Self {
         Self {
-            device: BDevice::new(),
+            device: BrightnessDevice::new(),
         }
     }
     pub fn set_percent(&mut self, percent: u32) {
@@ -20,35 +20,47 @@ impl Brightness {
     pub fn get_max_percent(&self) -> u32 {
         self.device.get_max_bright()
     }
-    pub fn login1_set_brightness(&self, level: u32) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn login1_set_brightness(&mut self, level: u32) -> Result<(), Box<dyn std::error::Error>> {
         match self.device.set_dbus_bright(level) {
-            Ok(()) => println!("run fine"),
-            Err(e) => println!("Not crash but lovable error: {:?}", e),
+            Ok(()) => println!("success"),
+            Err(e) => eprintln!("Not crash but lovable error: {:?}", e),
         }
         Ok(())
+    }
+    pub fn restore(&mut self) -> Result<bool, Box<dyn std::error::Error>> {
+        Ok(true)
     }
     pub fn information(&self) -> Vec<u32> {
         self.device.info()
     }
 }
-#[derive(Default)]
-struct BDevice {
+struct BrightnessDevice {
     id: &'static str,
     class: &'static str,
     max_brightness: u32,
     current_brightness: u32,
+    conn: Connection,
 }
-impl BDevice {
+
+impl BrightnessDevice {
     fn new() -> Self {
         let max_bright = get_property("max_brightness");
         let cur_bright = get_property("brightness");
+        let sys_conn = Connection::new_system().unwrap();
         Self {
+            id: "intel_backlight",
+            class: "backlight",
             max_brightness: max_bright,
             current_brightness: cur_bright,
-            ..Default::default()
+            conn: sys_conn,
         }
     }
-    /// set brightness for dispaly device
+    pub fn restore(&mut self) {
+        match std::env::var("XDG_RUNTIME_DIR") {
+            Ok(env_val) => {}
+            Err(e) => eprintln!("Error: {:?}", e),
+        }
+    }
     fn set_bright(&mut self, level: u32) {
         match set_device_path("backlight/intel_backlight") {
             Ok(mut dev) => {
@@ -97,48 +109,27 @@ impl BDevice {
     fn get_max_bright(&self) -> u32 {
         self.max_brightness
     }
-    // bool logind_set_brightness(struct device *d) {
-    //     sd_bus *bus = NULL;
-    //     int r = sd_bus_default_system(&bus);
-    //     if (r < 0) {
-    //         fprintf(stderr, "Can't connect to system bus: %s\n", strerror(-r));
-    //         return false;
-    //     }
-    //     r = sd_bus_call_method(bus,
-    //                    "org.freedesktop.login1",
-    //                    "/org/freedesktop/login1/session/auto",
-    //                    "org.freedesktop.login1.Session",
-    //                    "SetBrightness",
-    //                    NULL,
-    //                    NULL,
-    //                    "ssu",
-    //                    d->class,
-    //                    d->id,
-    //                    d->curr_brightness);
-    //     if (r < 0)
-    //         fprintf(stderr, "Failed to set brightness: %s\n", strerror(-r));
-    //     sd_bus_unref(bus);
-    //     return r >= 0;
-    // }
-    fn set_dbus_bright(&self, level: u32) -> Result<(), Box<dyn std::error::Error>> {
-        let conn = Connection::new_system()?;
-        let proxy = conn.with_proxy(
-            "org.freedesktop.login1",
-            "/org/freedesktop/login1/session/auto",
-            std::time::Duration::from_millis(100),
-        );
-        let (status,): (bool,) = proxy.method_call(
-            "org.freedesktop.login1.Session",
-            "SetBrightness",
-            ("backlight", "intel_backlight", level),
-        )?;
-        println!("dubs stats: {:?}", status);
-        if status {
-            println!("set brigthness success");
+    fn set_dbus_bright(&mut self, level: u32) -> Result<(), Box<dyn std::error::Error>> {
+        if level.gt(&100) || level.lt(&0) {
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "input value between 0 - 100",
+            )))
         } else {
-            println!("failed to set bright nesss");
+            let proxy = self.conn.with_proxy(
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1/session/auto",
+                std::time::Duration::from_millis(100),
+            );
+            proxy.method_call(
+                "org.freedesktop.login1.Session",
+                "SetBrightness",
+                ("backlight", "intel_backlight", self.percent_to_value(level)),
+            )?;
+            self.update(self.percent_to_value(level));
+
+            Ok(())
         }
-        Ok(())
     }
     fn get_current_level(&self) -> u32 {
         self.val_to_percent(self.current_brightness, true)
@@ -154,18 +145,20 @@ impl BDevice {
 #[cfg(test)]
 mod tests {
     use super::Brightness;
-    // use std::time::Duration;
+    use std::time::Duration;
     #[test]
     fn it_works() {
-        let bright = Brightness::new();
-        bright.login1_set_brightness(15000).unwrap();
-        // println!("current : {}", bright.get_percent());
-        // println!("max_percent: {}", bright.get_max_percent());
-        // for i in 1..=10 {
-        //     std::thread::sleep(Duration::from_millis(1000));
-        //     bright.set_percent(i * 10);
-        // }
-        // assert_eq!(100, bright.get_percent());
+        let mut bright = Brightness::new();
+        // bright.login1_set_brightness(101);
+        println!("current : {}", bright.get_percent());
+        println!("max_percent: {}", bright.get_max_percent());
+        for i in 1..=100 {
+            std::thread::sleep(Duration::from_millis(10));
+            bright.login1_set_brightness(i);
+        }
+
+        println!("current : {}", bright.get_percent());
+        assert_eq!(100, bright.get_percent());
         assert_eq!(2 + 2, 3);
     }
 }
