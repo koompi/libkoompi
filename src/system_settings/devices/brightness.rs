@@ -3,6 +3,7 @@ use crate::helpers::{get_property, set_device_path};
 use dbus::blocking::Connection;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+#[derive(Debug, Clone)]
 pub struct Brightness {
     device: BrightnessDevice,
 }
@@ -39,25 +40,23 @@ impl Brightness {
         self.device.info()
     }
 }
+#[derive(Debug, Clone)]
 struct BrightnessDevice {
     id: &'static str,
     class: &'static str,
     max_brightness: u32,
     current_brightness: u32,
-    conn: Connection,
 }
 
 impl BrightnessDevice {
     fn new() -> Self {
         let max_bright = get_property("max_brightness");
         let cur_bright = get_property("brightness");
-        let sys_conn = Connection::new_system().unwrap();
         Self {
             id: "intel_backlight",
             class: "backlight",
             max_brightness: max_bright,
             current_brightness: cur_bright,
-            conn: sys_conn,
         }
     }
     fn save_device_data(&mut self) {
@@ -160,7 +159,8 @@ impl BrightnessDevice {
                 "input value between 0 - 100",
             )))
         } else {
-            let proxy = self.conn.with_proxy(
+            let sys_conn = Connection::new_system().unwrap();
+            let proxy = sys_conn.with_proxy(
                 "org.freedesktop.login1",
                 "/org/freedesktop/login1/session/auto",
                 std::time::Duration::from_millis(100),
