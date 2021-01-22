@@ -198,7 +198,10 @@ mod tests {
         println!("max_percent: {}", bright.get_max_percent());
         for i in 1..=100 {
             std::thread::sleep(Duration::from_millis(10));
-            bright.login1_set_brightness(i);
+            match bright.login1_set_brightness(i) {
+                Ok(()) => {}
+                Err(e) => println!("Error: {:?}", e),
+            }
         }
 
         println!("current : {}", bright.get_percent());

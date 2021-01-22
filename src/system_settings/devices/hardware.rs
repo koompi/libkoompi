@@ -1,4 +1,4 @@
-use udev::{Devices, Enumerator, Hwdb};
+// use udev::{Devices, Enumerator, Hwdb};
 
 #[cfg(test)]
 mod tests {
@@ -8,7 +8,7 @@ mod tests {
         // device.iter().enumerate().for_each(|(key, value)| {
         //     println!("{:?} : {:?}", key, value.sysname());
         // });
-        let enum_dev = udev::Enumerator::new().unwrap();
+        // let enum_dev = udev::Enumerator::new().unwrap();
 
         assert_eq!(2 + 2, 3);
     }
