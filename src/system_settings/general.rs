@@ -3,18 +3,18 @@ use std::fs::File;
 use std::io::{prelude::*, Error, Result};
 use toml::{from_str, to_string_pretty};
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default,Clone)]
 pub struct ThemeManager {
     info: Info,
     button: Button,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Info {
     name: String,
     desc: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default,Clone)]
 pub struct Button {
     border: u8,
     backgroud: String,
