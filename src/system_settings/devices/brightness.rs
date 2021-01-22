@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 use crate::helpers::{get_property, set_device_path};
 use dbus::blocking::Connection;
+use std::fs::OpenOptions;
+use std::io::prelude::*;
 pub struct Brightness {
     device: BrightnessDevice,
 }
-
 impl Brightness {
     pub fn new() -> Self {
         Self {
@@ -22,12 +23,16 @@ impl Brightness {
     }
     pub fn login1_set_brightness(&mut self, level: u32) -> Result<(), Box<dyn std::error::Error>> {
         match self.device.set_dbus_bright(level) {
-            Ok(()) => println!("success"),
+            Ok(()) => {}
             Err(e) => eprintln!("Not crash but lovable error: {:?}", e),
         }
         Ok(())
     }
+    pub fn save_data(&mut self) {
+        self.device.save_device_data();
+    }
     pub fn restore(&mut self) -> Result<bool, Box<dyn std::error::Error>> {
+        self.device.restore();
         Ok(true)
     }
     pub fn information(&self) -> Vec<u32> {
@@ -55,18 +60,57 @@ impl BrightnessDevice {
             conn: sys_conn,
         }
     }
-    pub fn restore(&mut self) {
-        match std::env::var("XDG_RUNTIME_DIR") {
-            Ok(env_val) => {}
-            Err(e) => eprintln!("Error: {:?}", e),
+    fn save_device_data(&mut self) {
+        let file = OpenOptions::new().write(true).open(self.get_path());
+        match file {
+            Ok(mut pfile) => match pfile.write(&[self.current_brightness as u8]) {
+                Ok(data) => {
+                    println!("write to file {:?} bytes", data);
+                }
+                Err(e) => {
+                    eprintln!("Error: {:?}", e);
+                }
+            },
+            Err(e) => eprintln!("failed to open the file: {:?}", e),
         }
     }
+
+    fn restore(&mut self) {
+        let mut buffer: String = String::new();
+        let file = OpenOptions::new().read(true).open(self.get_path());
+        match file {
+            Ok(mut pfile) => {
+                pfile.read_to_string(&mut buffer).unwrap();
+            }
+            Err(e) => println!("read data: {:?}", e),
+        }
+        println!("data: {}", buffer);
+        match buffer.parse::<u32>() {
+            Ok(data) => {
+                println!("memory buffer: {:?}", data);
+                self.current_brightness = data;
+            }
+            Err(e) => println!("{:?}", e),
+        };
+        self.update(self.current_brightness);
+        self.set_bright(self.val_to_percent(self.current_brightness, true));
+    }
+
+    fn get_path(&self) -> std::path::PathBuf {
+        let mut xdg_dir: String = String::new();
+        match std::env::var("XDG_RUNTIME_DIR") {
+            Ok(xdg_path) => xdg_dir = xdg_path,
+            Err(e) => println!("path to xdg : {:?}", e),
+        }
+        std::path::Path::new(&xdg_dir)
+            .join("brightnessctl")
+            .join(self.class)
+            .join(self.id)
+    }
+    // set current brightness of the system
     fn set_bright(&mut self, level: u32) {
-        match set_device_path("backlight/intel_backlight") {
+        match set_device_path(format!("{}/{}", self.class, self.id).as_str()) {
             Ok(mut dev) => {
-                if dev.is_initialized() {
-                    println!("device has already been handled by udev")
-                }
                 // give time for cpu to execute on other processes
                 std::thread::sleep(std::time::Duration::from_millis(10));
                 let value = self.percent_to_value(level);
@@ -124,7 +168,7 @@ impl BrightnessDevice {
             proxy.method_call(
                 "org.freedesktop.login1.Session",
                 "SetBrightness",
-                ("backlight", "intel_backlight", self.percent_to_value(level)),
+                (self.class, self.id, self.percent_to_value(level)),
             )?;
             self.update(self.percent_to_value(level));
 
