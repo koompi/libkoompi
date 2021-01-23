@@ -38,6 +38,76 @@ impl Default for DateTimeManager {
 impl DateTimeManager {
    pub fn new() -> Result<Self, Error> {
       let mut datetime_mn = Self::default();
+      Self::load_info(&mut datetime_mn);
+      match exec_cmd(TIMEDATE_CTL, vec!["list-timezones"]) {
+         Ok(stdout) => {
+            datetime_mn.list_timezones = stdout.lines().map(|line| line.to_string()).collect();
+         },
+         Err(err) => eprintln!("{}", err), // error handling here
+      }
+      Ok(datetime_mn)
+   }
+
+   pub fn set_datetime(&mut self, datetime: &str) -> Result<bool, Error> {
+      let mut res = false;
+      if !self.ntp {
+         match exec_cmd(TIMEDATE_CTL, vec!["set-time", datetime]) {
+            Ok(_) => {
+               self.time_usec = datetime.to_owned();
+               Self::load_info(self);
+               res = true;
+            },
+            Err(err) => eprintln!("{}", err), // error handling here
+         }
+      }
+      Ok(res)
+   }
+
+   pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
+      let mut res = false;
+      if !self.ntp {
+         match exec_cmd(TIMEDATE_CTL, vec!["set-timezone", tz]){
+            Ok(_) => {
+               self.timezone = tz.to_owned();
+               Self::load_info(self);
+               res = true;
+            },
+            Err(err) => eprintln!("{}", err), // error handling here
+         }
+      }
+      Ok(res)
+   }
+
+   pub fn set_ntp(&mut self, ntp: bool) -> Result<bool, Error> {
+      let mut res = false;
+      match exec_cmd(TIMEDATE_CTL, vec!["set-ntp", format!("{}", ntp).as_str()]) {
+         Ok(_) => {
+            self.ntp = ntp;
+            // system clock synchronized
+            // self.ntp_sync = ntp;
+            Self::load_info(self);
+            res = true;
+         },
+         Err(err) => eprintln!("{}", err), // error handling here
+      }
+      Ok(res)
+   }
+
+   pub fn set_local_rtc(&mut self, local_rtc: bool) -> Result<bool, Error> {
+      let mut res = false;
+      if !self.ntp {
+         match exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc {"true"} else {"0"}]) {
+            Ok(_) => {
+               self.local_rtc = local_rtc;
+               res = true;
+            },
+            Err(err) => eprintln!("{}", err), // error handling here
+         }
+      }
+      Ok(res)
+   }
+
+   fn load_info(datetime_mn: &mut DateTimeManager) {
       match exec_cmd(TIMEDATE_CTL, vec!["show"]) {
          Ok(stdout) => {
             stdout.lines().for_each(|line| {
@@ -68,70 +138,6 @@ impl DateTimeManager {
          }
          Err(err) => eprintln!("{}", err), // error handling here
       }
-      match exec_cmd(TIMEDATE_CTL, vec!["list-timezones"]) {
-         Ok(stdout) => {
-            datetime_mn.list_timezones = stdout.lines().map(|line| line.to_string()).collect();
-         },
-         Err(err) => eprintln!("{}", err), // error handling here
-      }
-      Ok(datetime_mn)
-   }
-
-   pub fn set_datetime(&mut self, datetime: &str) -> Result<bool, Error> {
-      let mut res = false;
-      if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-time", datetime]) {
-            Ok(_) => {
-               self.time_usec = datetime.to_owned();
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
-      }
-      Ok(res)
-   }
-
-   pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
-      let mut res = false;
-      if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-timezone", tz]){
-            Ok(_) => {
-               self.timezone = tz.to_owned();
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
-      }
-      Ok(res)
-   }
-
-   pub fn set_ntp(&mut self, ntp: bool) -> Result<bool, Error> {
-      let mut res = false;
-      match exec_cmd(TIMEDATE_CTL, vec!["set-ntp", format!("{}", ntp).as_str()]) {
-         Ok(_) => {
-            self.ntp = ntp;
-
-            // system clock synchronized
-            // self.ntp_sync = ntp;
-            res = true;
-         },
-         Err(err) => eprintln!("{}", err), // error handling here
-      }
-      Ok(res)
-   }
-
-   pub fn set_local_rtc(&mut self, local_rtc: bool) -> Result<bool, Error> {
-      let mut res = false;
-      if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc {"true"} else {"0"}]) {
-            Ok(_) => {
-               self.local_rtc = local_rtc;
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
-      }
-      Ok(res)
    }
 }
 
