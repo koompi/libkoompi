@@ -208,7 +208,9 @@ impl LocaleManager {
    fn set_lc_numeric(lc_numeric: &mut LCNumeric) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()]) {
          Ok(stdout) => {
-            *lc_numeric = toml::from_str(&stdout).unwrap_or_default();
+            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
+            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "\"0\"")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+            *lc_numeric = toml::from_str(&stdout_formatted).unwrap_or_default();
          },
          Err(err) => eprintln!("{}", err), 
       }
@@ -217,7 +219,14 @@ impl LocaleManager {
    fn set_lc_time(lc_time: &mut LCTime) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
          Ok(stdout) => {
-            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !(line.starts_with("era=") || line.starts_with("alt_digits=") || line.starts_with("time_era_entries="))).collect::<Vec<&str>>().join("\n");
+            let stdout_formatted = stdout.replace("-", "_").lines().map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
+               if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
+                  formatted.push(format!("{}{}", line, "\"\""))
+               } else {
+                  formatted.push(line)
+               }
+               formatted
+            }).join("\n");
             *lc_time = toml::from_str(&stdout_formatted).unwrap_or_default(); 
          },
          Err(err) => eprintln!("{}", err), 
@@ -227,7 +236,8 @@ impl LocaleManager {
    fn set_lc_monetary(lc_monetary: &mut LCMonetary) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()]) {
          Ok(stdout) => {
-            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !(line.starts_with("mon_grouping=") || line.starts_with("conversion_rate="))).collect::<Vec<&str>>().join("\n");
+            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
+            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "\"0\"")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
             *lc_monetary = toml::from_str(&stdout_formatted).unwrap_or_default(); 
          },
          Err(err) => eprintln!("{}", err), 
@@ -279,6 +289,7 @@ mod test {
                },
                Err(err) => eprintln!("{}", err)
             }
+            println!("{:#?}", locale_mn);
             assert_eq!(locale_mn.language(), "km_KH.UTF-8");
          },
          Err(err) => eprintln!("{}", err)

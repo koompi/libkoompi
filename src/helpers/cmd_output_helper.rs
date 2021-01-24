@@ -11,8 +11,8 @@ pub fn get_bool_yesno(val: &str) -> bool {
 }
 
 pub fn get_val_from_keyval(line: &str, sep: Option<&str>) -> String {
-   match get_list_by_sep(line, "=").get(1) {
-      Some(val) => val.trim().to_string(),
+   match get_list_by_sep(line, sep.unwrap_or("=")).get(1) {
+      Some(val) => val.trim().replace("\"", ""),
       None => String::new()
    }
 }
