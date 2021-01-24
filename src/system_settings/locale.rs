@@ -86,7 +86,7 @@ impl LocaleManager {
          Err(err) => eprintln!("{}", err), // error handling here
       }
 
-      match exec_cmd(LOCALE, vec!["-a"]) {
+      match exec_cmd(LOCALE_CTL, vec!["list-locales"]) {
          Ok(stdout) => {
             *list_locales = stdout.lines().map(|line| line.to_string()).collect();
          },
