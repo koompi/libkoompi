@@ -1,8 +1,7 @@
 use std::io::Error;
 use serde::{Deserialize};
-use crate::helpers::{get_val_from_keyval, exec_cmd};
+use crate::helpers::{get_val_from_keyval, exec_cmd, get_list_by_sep};
 use std::fmt::{self, Display, Formatter};
-use getset::Getters;
 const LOCALE: &'static str = "locale";
 const LOCALE_CTL: &'static str = "localectl";
 
@@ -12,8 +11,9 @@ pub enum LC_Keywords {
    LC_NUMERIC,
    LC_TIME,
    LC_MONETARY,
+   LC_MESSAGES,
    LC_ADDRESS,
-   LC_TELEPHONE,
+   LC_MEASUREMENT,
 }
 
 impl Display for LC_Keywords {
@@ -24,131 +24,71 @@ impl Display for LC_Keywords {
          LC_NUMERIC => "LC_NUMERIC",
          LC_TIME => "LC_TIME",
          LC_MONETARY => "LC_MONETARY",
+         LC_MESSAGES => "LC_MESSAGES",
          LC_ADDRESS => "LC_ADDRESS",
-         LC_TELEPHONE => "LC_TELEPHONE",
+         LC_MEASUREMENT => "LC_MEASUREMENT",
       })
    }
 }
 
-#[derive(Debug, Clone, Default, Getters)]
+#[derive(Debug, Clone, Default)]
 pub struct LocaleManager {
-   #[getset(get = "pub")]
-   system_locale: SystemLocale,
-   #[getset(get = "pub")]
-   vc_keymap: String,
-   #[getset(get = "pub")]
-   vc_toggle_keymap: Option<String>,
-   #[getset(get = "pub")]
-   x11_layout: String,
-   #[getset(get = "pub")]
-   x11_model: Option<String>,
-   #[getset(get = "pub")]
-   x11_variant: Option<String>,
-   #[getset(get = "pub")]
-   x11_options: Option<String>,
+   lang: String,
+   lc_numeric: (String, LCNumeric),
+   lc_time: (String, LCTime),
+   lc_monetary: (String, LCMonetary),
+   lc_messages: (String, LCMessages),
+   lc_addr: (String, LCAddress),
+   lc_measure: (String,LCMeasure),
+   list_locales: Vec<String>,
 }
 
 impl LocaleManager {
    pub fn new() -> Result<Self, Error> {
       let mut locale_mn = Self::default();
       let Self {
-         system_locale: SystemLocale {
-            lang,
-            lc_numeric,
-            lc_time,
-            lc_monetary,
-            lc_addr,
-            lc_tel,
-            ls_locale,
-         },
-         vc_keymap,
-         vc_toggle_keymap,
-         x11_layout,
-         x11_model,
-         x11_variant,
-         x11_options,
+         lang,
+         lc_numeric,
+         lc_time,
+         lc_monetary,
+         lc_messages,
+         lc_addr,
+         lc_measure,
+         list_locales,
       } = &mut locale_mn;
 
-      let output_num_lines = match exec_cmd(LOCALE_CTL, vec!["status"]) {
+      match exec_cmd(LOCALE, Vec::new()) {
          Ok(stdout) => {
-            let output_num_lines = stdout.lines().count();
-            if output_num_lines <= 4 {
-               stdout.lines().map(|line| line.trim()).for_each(|line| {
-                  if line.starts_with("VC Keymap:") {
-                     *vc_keymap = get_val_from_keyval(line, Some(":"))
-                  } else if line.starts_with("VC Toggle Keymap:") {
-                     *vc_toggle_keymap = Some(get_val_from_keyval(line, Some(":")))
-                  } else if line.starts_with("X11 Layout:") {
-                     *x11_layout = get_val_from_keyval(line, Some(":"))
-                  } else if line.starts_with("X11 Model:") {
-                     *x11_model = Some(get_val_from_keyval(line, Some(":")))
-                  } else if line.starts_with("X11 Variant:") {
-                     *x11_variant = Some(get_val_from_keyval(line, Some(":")))
-                  } else if line.starts_with("X11 Options:") {
-                     *x11_options = Some(get_val_from_keyval(line, Some(":")))
-                  } 
-               });
-            } else {
-               stdout.lines().map(|line| line.trim()).for_each(|line| {
-                  if line.starts_with("System Locale:") {
-                     *lang = get_val_from_keyval(line, None);
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_NUMERIC).as_str()) {
-                     Self::set_lc_numeric(lc_numeric, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_TIME).as_str()) {
-                     Self::set_lc_time(lc_time, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
-                     Self::set_lc_monetary(lc_monetary, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_ADDRESS).as_str()) {
-                     Self::set_lc_addr(lc_addr, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_TELEPHONE).as_str()) {
-                     Self::set_lc_tel(lc_tel, get_val_from_keyval(line, None));
-                  } else if line.starts_with("VC Keymap:") {
-                     *vc_keymap = get_val_from_keyval(line, Some(":"))
-                  } else if line.starts_with("VC Toggle Keymap:") {
-                     *vc_toggle_keymap = Some(get_val_from_keyval(line, Some(":")))
-                  } else if line.starts_with("X11 Layout:") {
-                     *x11_layout = get_val_from_keyval(line, Some(":"))
-                  } else if line.starts_with("X11 Model:") {
-                     *x11_model = Some(get_val_from_keyval(line, Some(":")))
-                  } else if line.starts_with("X11 Variant:") {
-                     *x11_variant = Some(get_val_from_keyval(line, Some(":")))
-                  } else if line.starts_with("X11 Options:") {
-                     *x11_options = Some(get_val_from_keyval(line, Some(":")))
-                  } 
-               });
-            }
-            output_num_lines
-         }
-         Err(err) => {
-            eprintln!("{}", err); // error handling here 
-            0
-         }, 
-      };
-      if output_num_lines <= 4 {
-         match exec_cmd(LOCALE, Vec::new()) {
-            Ok(stdout) => {
-               stdout.lines().for_each(|line| {
-                  if line.starts_with(format!("{}", LC_Keywords::LANG).as_str()) {
-                     *lang = get_val_from_keyval(line, None);
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_NUMERIC).as_str()) {
-                     Self::set_lc_numeric(lc_numeric, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_TIME).as_str()) {
-                     Self::set_lc_time(lc_time, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
-                     Self::set_lc_monetary(lc_monetary, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_ADDRESS).as_str()) {
-                     Self::set_lc_addr(lc_addr, get_val_from_keyval(line, None));
-                  } else if line.starts_with(format!("{}", LC_Keywords::LC_TELEPHONE).as_str()) {
-                     Self::set_lc_tel(lc_tel, get_val_from_keyval(line, None));
-                  } 
-               });
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
+            stdout.lines().for_each(|line| {
+               if line.starts_with(format!("{}", LC_Keywords::LANG).as_str()) {
+                  *lang = get_val_from_keyval(line, None);
+               } else if line.starts_with(format!("{}", LC_Keywords::LC_NUMERIC).as_str()) {
+                  lc_numeric.0 = get_val_from_keyval(line, None);
+                  Self::set_lc_numeric(&mut lc_numeric.1);
+               } else if line.starts_with(format!("{}", LC_Keywords::LC_TIME).as_str()) {
+                  lc_time.0 = get_val_from_keyval(line, None);
+                  Self::set_lc_time(&mut lc_time.1);
+               } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
+                  lc_monetary.0 = get_val_from_keyval(line, None);
+                  Self::set_lc_monetary(&mut lc_monetary.1);
+               } else if line.starts_with(format!("{}", LC_Keywords::LC_MESSAGES).as_str()) {
+                  lc_messages.0 = get_val_from_keyval(line, None);
+                  Self::set_lc_messages(&mut lc_messages.1);
+               } else if line.starts_with(format!("{}", LC_Keywords::LC_ADDRESS).as_str()) {
+                  lc_addr.0 = get_val_from_keyval(line, None);
+                  Self::set_lc_addr(&mut lc_addr.1);
+               } else if line.starts_with(format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()) {
+                  lc_measure.0 = get_val_from_keyval(line, None);
+                  Self::set_lc_measure(&mut lc_measure.1);
+               } 
+            });
+         },
+         Err(err) => eprintln!("{}", err), // error handling here
       }
-      match exec_cmd(LOCALE_CTL, vec!["list-locales"]) {
+
+      match exec_cmd(LOCALE, vec!["-a"]) {
          Ok(stdout) => {
-            *ls_locale = stdout.lines().map(|line| line.to_string()).collect();
+            *list_locales = stdout.lines().map(|line| line.to_string()).collect();
          },
          Err(err) => eprintln!("{}", err), // error handling here
       }
@@ -160,26 +100,43 @@ impl LocaleManager {
          Ok(_) => {
             use LC_Keywords::*;
             let Self {
-               system_locale: SystemLocale {
-                  lang,
-                  lc_numeric,
-                  lc_time,
-                  lc_monetary,
-                  lc_addr,
-                  lc_tel,
-                  ..
-               },
+               lang,
+               lc_numeric,
+               lc_time,
+               lc_monetary,
+               lc_messages,
+               lc_addr,
+               lc_measure,
                ..
             } = self;
             let lc = locale.to_string();
 
             match keyword {
                LANG => *lang = lc,
-               LC_NUMERIC => Self::set_lc_numeric(lc_numeric, lc),
-               LC_TIME => Self::set_lc_time(lc_time, lc),
-               LC_MONETARY => Self::set_lc_monetary(lc_monetary, lc),
-               LC_ADDRESS => Self::set_lc_addr(lc_addr, lc),
-               LC_TELEPHONE => Self::set_lc_tel(lc_tel, lc),
+               LC_NUMERIC => {
+                  lc_numeric.0 = lc;
+                  Self::set_lc_numeric(&mut lc_numeric.1);
+               },
+               LC_TIME => {
+                  lc_time.0 = lc;
+                  Self::set_lc_time(&mut lc_time.1);
+               },
+               LC_MONETARY => {
+                  lc_monetary.0 = lc;
+                  Self::set_lc_monetary(&mut lc_monetary.1);
+               },
+               LC_MESSAGES => {
+                  lc_messages.0 = lc;
+                  Self::set_lc_messages(&mut lc_messages.1);
+               }
+               LC_ADDRESS => {
+                  lc_addr.0 = lc;
+                  Self::set_lc_addr(&mut lc_addr.1);
+               },
+               LC_MEASUREMENT => {
+                  lc_measure.0 = lc;
+                  Self::set_lc_measure(&mut lc_measure.1)
+               },
             }
             Ok(true)
          },
@@ -190,101 +147,115 @@ impl LocaleManager {
       }
    }
 
-   pub fn list_locales(&self) -> &Vec<String> {
-      self.system_locale.ls_locale.as_ref()
+   pub fn language(&self) -> &str {
+      self.lang.as_str()
    }
 
-   pub fn list_keymaps(&self) -> Result<Vec<String>, Error> {
-      Ok(exec_cmd(LOCALE_CTL, vec!["list-keymaps"])?.lines().map(ToOwned::to_owned).collect())
+   pub fn list_locales(&self) -> Vec<&str> {
+      self.list_locales.iter().map(AsRef::as_ref).collect()
    }
 
-   pub fn set_keymap(&mut self, keymap: &str, toggle_map: Option<&str>) -> Result<bool, Error> {
-      match exec_cmd(LOCALE_CTL, vec!["set-keymap", keymap, toggle_map.unwrap_or_default()]) {
-         Ok(_) => {
-            self.vc_keymap = keymap.to_owned();
-            self.vc_toggle_keymap = toggle_map.map(ToOwned::to_owned);
-            Ok(true)
-         },
-         Err(err) => Err(err)
-      }
+   pub fn numeric(&self) -> &str {
+      self.lc_numeric.0.as_str()
    }
 
-   pub fn list_keymap_models(&self) -> Result<Vec<String>, Error> {
-      Ok(exec_cmd(LOCALE_CTL, vec!["list-x11-keymap-models"])?.lines().map(ToOwned::to_owned).collect())
+   pub fn numeric_details(&self) -> &LCNumeric {
+      &self.lc_numeric.1
    }
 
-   pub fn list_keymap_layouts(&self) -> Result<Vec<String>, Error> {
-      Ok(exec_cmd(LOCALE_CTL, vec!["list-x11-keymap-layouts"])?.lines().map(ToOwned::to_owned).collect())
+   pub fn time(&self) -> &str {
+      self.lc_time.0.as_str()
    }
 
-   pub fn list_keymap_variants(&self, layout: &str) -> Result<Vec<String>, Error> {
-      Ok(exec_cmd(LOCALE_CTL, vec!["list-x11-keymap-variants", layout])?.lines().map(ToOwned::to_owned).collect())
+   pub fn time_details(&self) -> &LCTime {
+      &self.lc_time.1
    }
 
-   pub fn list_keymap_options(&self) -> Result<Vec<String>, Error> {
-      Ok(exec_cmd(LOCALE_CTL, vec!["list-x11-keymap-options"])?.lines().map(ToOwned::to_owned).collect())
+   pub fn monetary(&self) -> &str {
+      self.lc_monetary.0.as_str()
    }
 
-   pub fn set_x11_keymap(&mut self, layout: &str, model: Option<&str>, variant: Option<&str>, opts: Option<&str>) -> Result<bool, Error> {
-      match exec_cmd(LOCALE_CTL, vec!["set-x11-keymap", layout, model.unwrap_or_default(), variant.unwrap_or_default(), opts.unwrap_or_default()]) {
-         Ok(_) => {
-            self.x11_layout = layout.to_owned();
-            self.x11_model = model.map(ToOwned::to_owned);
-            self.x11_variant = variant.map(ToOwned::to_owned);
-            self.x11_options = opts.map(ToOwned::to_owned);
-            Ok(true)
-         },
-         Err(err) => Err(err)
-      }
+   pub fn monetary_details(&self) -> &LCMonetary {
+      &self.lc_monetary.1
    }
 
-   fn set_lc_numeric(lc_numeric: &mut LCNumeric, lc: String) {
+   pub fn messages(&self) -> &str {
+      self.lc_messages.0.as_str()
+   }
+
+   pub fn messages_details(&self) -> &LCMessages {
+      &self.lc_messages.1
+   }
+
+   pub fn address(&self) -> &str {
+      self.lc_addr.0.as_str()
+   }
+
+   pub fn address_details(&self) -> &LCAddress {
+      &self.lc_addr.1
+   }
+
+   pub fn measurement(&self) -> &str {
+      self.lc_measure.0.as_str()
+   }
+
+   pub fn measurement_details(&self) -> &LCMeasure {
+      &self.lc_measure.1
+   }
+}
+
+impl LocaleManager {
+   fn set_lc_numeric(lc_numeric: &mut LCNumeric) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()]) {
          Ok(stdout) => {
-            *lc_numeric = toml::from_str(&stdout).unwrap_or_default(); 
-            lc_numeric.lc = lc;
+            *lc_numeric = toml::from_str(&stdout).unwrap_or_default();
          },
          Err(err) => eprintln!("{}", err), 
       }
    }
 
-   fn set_lc_time(lc_time: &mut LCTime, lc: String) {
+   fn set_lc_time(lc_time: &mut LCTime) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
          Ok(stdout) => {
             let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !(line.starts_with("era=") || line.starts_with("alt_digits=") || line.starts_with("time_era_entries="))).collect::<Vec<&str>>().join("\n");
             *lc_time = toml::from_str(&stdout_formatted).unwrap_or_default(); 
-            lc_time.lc = lc;
          },
          Err(err) => eprintln!("{}", err), 
       }
    }
 
-   fn set_lc_monetary(lc_monetary: &mut LCMonetary, lc: String) {
+   fn set_lc_monetary(lc_monetary: &mut LCMonetary) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()]) {
          Ok(stdout) => {
             let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !(line.starts_with("mon_grouping=") || line.starts_with("conversion_rate="))).collect::<Vec<&str>>().join("\n");
             *lc_monetary = toml::from_str(&stdout_formatted).unwrap_or_default(); 
-            lc_monetary.lc = lc;
          },
          Err(err) => eprintln!("{}", err), 
       }
    }
 
-   fn set_lc_addr(lc_addr: &mut LCAddress, lc: String) {
+   fn set_lc_messages(lc_messages: &mut LCMessages) {
+      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MESSAGES).as_str()]) {
+         Ok(stdout) => {
+            *lc_messages = toml::from_str(&stdout).unwrap_or_default(); 
+         },
+         Err(err) => eprintln!("{}", err), 
+      }
+   }
+
+   fn set_lc_addr(lc_addr: &mut LCAddress) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_ADDRESS).as_str()]) {
          Ok(stdout) => {
             *lc_addr = toml::from_str(&stdout).unwrap_or_default(); 
-            lc_addr.lc = lc;
          },
          Err(err) => eprintln!("{}", err), 
       }
    }
 
-   fn set_lc_tel(lc_tel: &mut LCTelephone, lc: String) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TELEPHONE).as_str()]) {
+   fn set_lc_measure(lc_measure: &mut LCMeasure) {
+      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()]) {
          Ok(stdout) => {
-            *lc_tel = toml::from_str(&stdout).unwrap_or_default(); 
-            lc_tel.lc = lc;
+            *lc_measure = toml::from_str(&stdout).unwrap_or_default(); 
          },
          Err(err) => eprintln!("{}", err), 
       }
@@ -308,160 +279,97 @@ mod test {
                },
                Err(err) => eprintln!("{}", err)
             }
-            match locale_mn.set_keymap("us", None) {
-               Ok(is_sucess) => {
-                  if is_sucess {
-                     println!("Success set keymap")
-                  } else {
-                     println!("Can not set keymap")
-                  }
-               },
-               Err(err) => eprintln!("{}", err)
-            }
-            match locale_mn.set_x11_keymap("us", None, None, None) {
-               Ok(is_sucess) => {
-                  if is_sucess {
-                     println!("Success set x11 keymap")
-                  } else {
-                     println!("Can not set x11 keymap")
-                  }
-               },
-               Err(err) => eprintln!("{}", err)
-            }
-            assert_eq!(locale_mn.vc_keymap(), "us");
-            assert_eq!(locale_mn.x11_layout(), "us");
-            assert_eq!(locale_mn.system_locale().lang(), "km_KH.UTF-8");
+            assert_eq!(locale_mn.language(), "km_KH.UTF-8");
          },
          Err(err) => eprintln!("{}", err)
       }
    }
 }
 
-#[derive(Debug, Clone, Default, Getters)]
-pub struct SystemLocale {
-   #[getset(get = "pub")]
-   lang: String,
-   #[getset(get = "pub")]
-   lc_numeric: LCNumeric,
-   #[getset(get = "pub")]
-   lc_time: LCTime,
-   #[getset(get = "pub")]
-   lc_monetary: LCMonetary,
-   #[getset(get = "pub")]
-   lc_addr: LCAddress,
-   #[getset(get = "pub")]
-   lc_tel: LCTelephone,
-   #[getset(get = "pub")]
-   ls_locale: Vec<String>,
-}
-
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct LCNumeric {
-   #[serde(skip)]
-   lc: String,
-   #[serde(alias = "decimal_point")]
-   dec_point: String,
-   thousands_sep: String,
-   #[serde(alias = "grouping")]
-   grp: u8,
+   pub decimal_point: String,
+   pub thousands_sep: String,
+   pub grouping: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct LCTime {
-   #[serde(skip)]
-   lc: String,
-   #[serde(alias = "abday")]
-   ab_day: String,
+   abday: String,
    day: String,
-   #[serde(alias = "abmon")]
-   ab_mon: String,
+   abmon: String,
    mon: String,
    am_pm: String,
-   d_t_fmt: String,
-   d_fmt: String,
-   t_fmt: String,
-   t_fmt_ampm: String,
-   // era: String,
-   era_year: String,
-   era_d_fmt: String,
-   era_t_fmt: String,
-   era_d_t_fmt: String,
-   // alt_digits: String,
-   // #[serde(alias = "time-era-num-entries")]
-   time_era_num_entries: u8,
-   // #[serde(alias = "time-era-entries")]
-   // time_era_entries: String,
-   // #[serde(alias = "week-ndays")]
-   week_ndays: u8,
-   // #[serde(alias = "week-1stday")]
-   week_1stday: u32,
-   // #[serde(alias = "week-1stweek")]
-   week_1stweek: u8,
-   first_weekday: u8,
-   first_workday: u8,
-   cal_direction: u8,
-   timezone: String,
-   date_fmt: String,
-   alt_mon: String,
-   ab_alt_mon: String,
+   pub d_t_fmt: String,
+   pub d_fmt: String,
+   pub t_fmt: String,
+   pub t_fmt_ampm: String,
+   alt_digits: String,
+   pub era: String,
+   pub era_d_fmt: String,
+   pub era_t_fmt: String,
+   pub era_d_t_fmt: String,
+   pub first_weekday: u8,
 }
 
-// #[derive(Debug, Clone, Default, Deserialize)]
-// pub struct LCCollate {
-//    #[serde(skip)]
-//    lc: String,
-//    #[serde(alias = "collate-nrules")]
-//    collate_nrules: u8,
-//    #[serde(alias = "collate-rulesets")]
-//    collate_rulesets: String,
-//    #[serde(alias = "collate-symb-hash-sizemb")]
-//    collate_symb_hash_sizemb: u32,
-// }
+impl LCTime {
+   pub fn list_abbr_days(&self) -> Vec<String> {
+      get_list_by_sep(self.abday.as_str(), ";")
+   }
+
+   pub fn list_days(&self) -> Vec<String> {
+      get_list_by_sep(self.day.as_str(), ";")
+   }
+
+   pub fn list_abbr_months(&self) -> Vec<String> {
+      get_list_by_sep(self.abmon.as_str(), ";")
+   }
+
+   pub fn list_months(&self) -> Vec<String> {
+      get_list_by_sep(self.mon.as_str(), ";")
+   }
+
+   pub fn str_am_pm(&self) -> Vec<String> {
+      get_list_by_sep(self.am_pm.as_str(), ";")
+   }
+
+   pub fn list_alt_digits(&self) -> Vec<String> {
+      get_list_by_sep(self.alt_digits.as_str(), ";")
+   }
+}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct LCMonetary {
-   #[serde(skip)]
-   lc: String,
-   int_curr_symbol: String,
-   #[serde(alias = "currency_symbol")]
-   curr_symbol: String,
-   #[serde(alias = "mon_decimal_point")]
-   mon_dec_point: String,
-   mon_thousands_sep: String,
-   // #[serde(alias = "mon_grouping")]
-   // mon_grp: String,
-   #[serde(alias = "positive_sign")]
-   pos_sign: String,
-   #[serde(alias = "negative_sign")]
-   neg_sign: String,
-   int_frac_digits: u8,
-   frac_digits: u8,
+   pub int_curr_symbol: String,
+   pub currency_symbol: String,
+   pub mon_decimal_point: String,
+   pub mon_thousands_sep: String,
+   pub mon_grouping: String,
+   pub positive_sign: String,
+   pub negative_sign: String,
+   pub int_frac_digits: u8,
+   pub frac_digits: u8,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct LCMessages {
+   pub yesexpr: String,
+   pub noexpr: String,
+   pub yesstr: String,
+   pub nostr: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct LCAddress {
-   #[serde(skip)]
-   lc: String,
-   postal_fmt: String,
-   country_name: String,
-   country_post: String,
-   country_ab2: String,
-   country_ab3: String,
-   country_car: String,
-   country_num: u16,
-   country_isbn: String,
-   lang_name: String,
-   lang_ab: String,
-   lang_term: String,
-   lang_lib: String,
+   pub country_name: String,
+   pub country_post: String,
+   pub country_ab2: String,
+   pub country_ab3: String,
+   pub lang_name: String,
+   pub lang_ab: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct LCTelephone {
-   #[serde(skip)]
-   lc: String,
-   tel_int_fmt: String,
-   tel_dom_fmt: String,
-   int_select: String,
-   int_prefix: String,
+pub struct LCMeasure {
+   pub measurement: usize,
 }

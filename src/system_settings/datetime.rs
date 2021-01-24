@@ -146,7 +146,7 @@ mod tests {
    use super::DateTimeManager;
 
    #[test]
-   fn it_works() {
+   fn test_dt_manager() {
       match DateTimeManager::new() {
          Ok(mut dt_mn) => {
             if let Ok(res) = dt_mn.set_ntp(false) {
