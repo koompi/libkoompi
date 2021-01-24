@@ -200,7 +200,6 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
             bright.login1_set_brightness(i);
         }
-
         println!("current : {}", bright.get_percent());
         assert_eq!(100, bright.get_percent());
         assert_eq!(2 + 2, 3);
