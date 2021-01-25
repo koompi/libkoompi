@@ -66,7 +66,8 @@ impl DateTimeManager {
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
       let mut res = false;
       if !self.ntp {
-         match exec_cmd("pkexec", vec![TIMEDATE_CTL, "set-timezone", tz]){
+         // println!("{:?}", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]);
+         match exec_cmd("pkexec", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]){
             Ok(_) => {
                self.timezone = tz.to_owned();
                Self::load_info(self);
@@ -166,12 +167,12 @@ mod tests {
                }
             }
 
-            if let Ok(res) = dt_mn.set_timezone("Africa/Cairo") {
+            if let Ok(res) = dt_mn.set_timezone("Asia/Phnom_Penh") {
                if res {
                   println!("{}", *dt_mn.timezone());
-                  assert_eq!(*dt_mn.timezone(), "Africa/Cairo");
                }
-            }
+            } 
+            assert_eq!(*dt_mn.timezone(), "Asia/Phnom_Penh");
          },
          Err(err) => println!("{}", err)
       }
