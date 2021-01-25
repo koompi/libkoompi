@@ -1,4 +1,4 @@
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use crate::helpers::{get_bool_yesno, exec_cmd};
 use getset::Getters;
 
@@ -66,13 +66,24 @@ impl DateTimeManager {
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
       let mut res = false;
       if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-timezone", tz]){
-            Ok(_) => {
-               self.timezone = tz.to_owned();
-               Self::load_info(self);
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
+         // match exec_cmd(format!("sudo {}", TIMEDATE_CTL).as_str(), vec!["set-timezone", tz]){
+         //    Ok(_) => {
+         //       self.timezone = tz.to_owned();
+         //       Self::load_info(self);
+         //       res = true;
+         //    },
+         //    Err(err) => eprintln!("{}", err), // error handling here
+         // }
+
+         let output = std::process::Command::new("sudo").arg("timedatectl").arg("set-timezone").arg(tz).output()?;
+
+         if output.status.success() {
+            self.timezone = tz.to_owned();
+            Self::load_info(self);
+            res = true;
+         }
+         else if let Ok(stderr) = String::from_utf8(output.stderr) {
+            return Err(Error::new(ErrorKind::Other, stderr));
          }
       }
       Ok(res)
