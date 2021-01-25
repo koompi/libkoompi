@@ -96,7 +96,7 @@ impl LocaleManager {
    }
 
    pub fn set_locale(&mut self, keyword: LC_Keywords, locale: &str) -> Result<bool, Error> {
-      match exec_cmd(LOCALE_CTL, vec!["set-locale", format!("{}={}", keyword, locale).as_str()]) {
+      match exec_cmd("pkexec", vec![LOCALE_CTL, "set-locale", format!("{}={}", keyword, locale).as_str()]) {
          Ok(_) => {
             use LC_Keywords::*;
             let Self {
@@ -209,7 +209,7 @@ impl LocaleManager {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()]) {
          Ok(stdout) => {
             let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
-            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "\"0\"")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
             *lc_numeric = toml::from_str(&stdout_formatted).unwrap_or_default();
          },
          Err(err) => eprintln!("{}", err), 
@@ -219,7 +219,7 @@ impl LocaleManager {
    fn set_lc_time(lc_time: &mut LCTime) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
          Ok(stdout) => {
-            let stdout_formatted = stdout.replace("-", "_").lines().map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
+            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !line.starts_with("time_era_entries=")).map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
                if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
                   formatted.push(format!("{}{}", line, "\"\""))
                } else {
@@ -237,7 +237,7 @@ impl LocaleManager {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()]) {
          Ok(stdout) => {
             let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
-            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "\"0\"")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
             *lc_monetary = toml::from_str(&stdout_formatted).unwrap_or_default(); 
          },
          Err(err) => eprintln!("{}", err), 
@@ -279,7 +279,7 @@ mod test {
    fn test_locale_manager() {
       match LocaleManager::new() {
          Ok(mut locale_mn) => {
-            match locale_mn.set_locale(LC_Keywords::LANG, "km_KH.UTF-8") {
+            match locale_mn.set_locale(LC_Keywords::LC_TIME, "km_KH.UTF-8") {
                Ok(is_sucess) => {
                   if is_sucess {
                      println!("Success set locale {}", LC_Keywords::LANG)
@@ -290,7 +290,7 @@ mod test {
                Err(err) => eprintln!("{}", err)
             }
             println!("{:#?}", locale_mn);
-            assert_eq!(locale_mn.language(), "km_KH.UTF-8");
+            assert_eq!(locale_mn.time(), "km_KH.UTF-8");
          },
          Err(err) => eprintln!("{}", err)
       }
@@ -301,7 +301,7 @@ mod test {
 pub struct LCNumeric {
    pub decimal_point: String,
    pub thousands_sep: String,
-   pub grouping: String,
+   pub grouping: u8,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -355,7 +355,7 @@ pub struct LCMonetary {
    pub currency_symbol: String,
    pub mon_decimal_point: String,
    pub mon_thousands_sep: String,
-   pub mon_grouping: String,
+   pub mon_grouping: u8,
    pub positive_sign: String,
    pub negative_sign: String,
    pub int_frac_digits: u8,
