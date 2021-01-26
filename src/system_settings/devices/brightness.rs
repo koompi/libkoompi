@@ -191,7 +191,7 @@ mod tests {
     use super::Brightness;
     use std::time::Duration;
     #[test]
-    fn it_works() {
+    fn test_bright() {
         let mut bright = Brightness::new();
         // bright.login1_set_brightness(101);
         println!("current : {}", bright.get_percent());

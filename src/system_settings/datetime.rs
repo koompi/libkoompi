@@ -1,38 +1,39 @@
 use std::io::Error;
 use crate::helpers::{get_bool_yesno, exec_cmd};
-use getset::Getters;
+use getset::{Getters, MutGetters};
+use std::process::Command;
 
 const TIMEDATE_CTL: &'static str = "timedatectl";
 
 #[derive(Debug, Clone, Getters)]
 pub struct DateTimeManager {
-   #[getset(get = "pub")]
-   timezone: String,
-   local_rtc: bool,
-   can_ntp: bool,
-   #[getset(get = "pub")]
-   ntp: bool,
-   ntp_sync: bool,
-   #[getset(get = "pub")]
-   time_usec: String,
-   rtc_time_usec: String,
-   #[getset(get = "pub")]
-   list_timezones: Vec<String>,
+    #[getset(get = "pub")]
+    timezone: String,
+    local_rtc: bool,
+    can_ntp: bool,
+    #[getset(get = "pub")]
+    ntp: bool,
+    ntp_sync: bool,
+    #[getset(get = "pub")]
+    time_usec: String,
+    rtc_time_usec: String,
+    #[getset(get = "pub")]
+    list_timezones: Vec<String>,
 }
 
 impl Default for DateTimeManager {
-   fn default() -> Self {
-      Self {
-         timezone: String::default(),
-         local_rtc: false,
-         can_ntp: true,
-         ntp: true,
-         ntp_sync: true,
-         time_usec: String::default(),
-         rtc_time_usec: String::default(),
-         list_timezones: Vec::new()
-      }
-   }
+    fn default() -> Self {
+        Self {
+            timezone: String::default(),
+            local_rtc: false,
+            can_ntp: true,
+            ntp: true,
+            ntp_sync: true,
+            time_usec: String::default(),
+            rtc_time_usec: String::default(),
+            list_timezones: Vec::new(),
+        }
+    }
 }
 
 impl DateTimeManager {
@@ -154,8 +155,9 @@ mod tests {
                   assert_eq!(*dt_mn.ntp(), false)
                }
             }
-         },
-         Err(err) => println!("{}", err)
-      }
-   }
+            
+        },
+        Err(err) => println!("{}", err),
+    }
+    }
 }
