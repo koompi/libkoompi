@@ -1,7 +1,6 @@
 use std::io::Error;
 use crate::helpers::{get_bool_yesno, exec_cmd};
-use getset::{Getters, MutGetters};
-use std::process::Command;
+use getset::{Getters};
 
 const TIMEDATE_CTL: &'static str = "timedatectl";
 
@@ -107,7 +106,6 @@ impl DateTimeManager {
       }
       Ok(res)
    }
-
    fn load_info(datetime_mn: &mut DateTimeManager) {
       match exec_cmd(TIMEDATE_CTL, vec!["show"]) {
          Ok(stdout) => {

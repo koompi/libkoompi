@@ -1,7 +1,7 @@
 use dbus::Error;
 
 use super::power_provider::{
-    InitSystemProvider, PowerProvider, Provider, SessionProvider, UPowerProvider,
+    InitSystemProvider, PowerProvider, SessionProvider, UPowerProvider,
 };
 
 /// Power can perform next actions:
