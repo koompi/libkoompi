@@ -188,20 +188,20 @@ impl BrightnessDevice {
 
 #[cfg(test)]
 mod tests {
-    use super::Brightness;
-    use std::time::Duration;
+    // use super::Brightness;
+    // use std::time::Duration;
     #[test]
     fn it_works() {
-        let mut bright = Brightness::new();
-        // bright.login1_set_brightness(101);
-        println!("current : {}", bright.get_percent());
-        println!("max_percent: {}", bright.get_max_percent());
-        for i in 1..=100 {
-            std::thread::sleep(Duration::from_millis(10));
-            bright.login1_set_brightness(i);
-        }
-        println!("current : {}", bright.get_percent());
-        assert_eq!(100, bright.get_percent());
+        // let mut bright = Brightness::new();
+        // // bright.login1_set_brightness(101);
+        // println!("current : {}", bright.get_percent());
+        // println!("max_percent: {}", bright.get_max_percent());
+        // for i in 1..=100 {
+        //     std::thread::sleep(Duration::from_millis(10));
+        //     bright.login1_set_brightness(i);
+        // }
+        // println!("current : {}", bright.get_percent());
+        // assert_eq!(100, bright.get_percent());
         assert_eq!(2 + 2, 3);
     }
 }

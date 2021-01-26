@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 use udev::{Devices, Enumerator, Hwdb};
 
 #[cfg(test)]
