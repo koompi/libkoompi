@@ -3,12 +3,13 @@ use serde::{Deserialize};
 use crate::helpers::{get_val_from_keyval, exec_cmd, get_list_by_sep, read_content, write_content};
 use std::fmt::{self, Display, Formatter};
 const LOCALE: &'static str = "locale";
-const LOCALE_CTL: &'static str = "localectl";
+const LOCALE_DEF: &'static str = "localedef";
 
 /// List of LC_* variants
 #[allow(non_camel_case_types)]
 pub enum LC_Keywords {
    LANG,
+   LANGUAGE,
    LC_NUMERIC,
    LC_TIME,
    LC_MONETARY,
@@ -22,6 +23,7 @@ impl Display for LC_Keywords {
       use LC_Keywords::*;
       write!(f, "{}", match self {
          LANG => "LANG",
+         LANGUAGE => "LANGUAGE",
          LC_NUMERIC => "LC_NUMERIC",
          LC_TIME => "LC_TIME",
          LC_MONETARY => "LC_MONETARY",
@@ -36,6 +38,7 @@ impl Display for LC_Keywords {
 #[derive(Debug, Clone, Default)]
 pub struct LocaleManager {
    lang: String,
+   language: String,
    lc_numeric: (String, LCNumeric),
    lc_time: (String, LCTime),
    lc_monetary: (String, LCMonetary),
@@ -55,6 +58,7 @@ impl LocaleManager {
       let mut locale_mn = Self::default();
       let Self {
          lang,
+         language,
          lc_numeric,
          lc_time,
          lc_monetary,
@@ -94,7 +98,9 @@ impl LocaleManager {
          Err(err) => return Err(err), // error handling here
       }
 
-      match exec_cmd(LOCALE, vec!["-a"]) {
+      *language = std::env::var("LANGUAGE").unwrap_or(String::new());
+
+      match exec_cmd(LOCALE_DEF, vec!["--list-archive"]) {
          Ok(stdout) => {
             *list_locales = stdout.lines().map(|line| line.to_string()).collect();
          },
@@ -114,7 +120,13 @@ impl LocaleManager {
 
    /// Return a list of all enabled prefered languages
    pub fn list_prefered_langs(&self) -> Vec<(&str, &str)> {
-      self.list_langs.iter().map(|(key, lang)| (key.as_str(), *lang.split("(").collect::<Vec<&str>>().first().unwrap_or(&lang.as_str()))).collect()
+      if self.language.is_empty() {
+         vec![(self.lang.as_str(), self.language())]
+      } else {
+         let ls_lang_reg = self.list_langs.iter().map(|(key, lang)| (key.as_str(), *lang.split("(").collect::<Vec<&str>>().first().unwrap_or(&lang.as_str()))).collect::<Vec<(&str, &str)>>();
+         let ls_prefered_langs = self.language.split(":").collect::<Vec<&str>>().iter().map(|lang| format!("{}.utf8", lang)).collect::<Vec<String>>();
+         ls_lang_reg.into_iter().filter(|(k, _)| ls_prefered_langs.contains(&k.to_string())).collect()
+      }
    }
 
    /// Return a list of all enabled locale formatted as "lang - region (locale)"
@@ -207,52 +219,53 @@ impl LocaleManager {
 
    /// Set locale by specified keyword and locale
    pub fn set_locale(&mut self, keyword: LC_Keywords, locale: &str) -> Result<bool, Error> {
-      match exec_cmd(LOCALE_CTL, vec!["set-locale", format!("{}={}", keyword, locale).as_str()]) {
-         Ok(_) => {
-            use LC_Keywords::*;
-            let Self {
-               lang,
-               lc_numeric,
-               lc_time,
-               lc_monetary,
-               lc_messages,
-               lc_addr,
-               lc_measure,
-               ..
-            } = self;
-            let lc = locale.to_string();
+      // match exec_cmd(LOCALE_CTL, vec!["set-locale", format!("{}={}", keyword, locale).as_str()]) {
+      //    Ok(_) => {
+      //       use LC_Keywords::*;
+      //       let Self {
+      //          lang,
+      //          lc_numeric,
+      //          lc_time,
+      //          lc_monetary,
+      //          lc_messages,
+      //          lc_addr,
+      //          lc_measure,
+      //          ..
+      //       } = self;
+      //       let lc = locale.to_string();
 
-            match keyword {
-               LANG => *lang = lc,
-               LC_NUMERIC => {
-                  lc_numeric.0 = lc;
-                  Self::set_lc_numeric(&mut lc_numeric.1);
-               },
-               LC_TIME => {
-                  lc_time.0 = lc;
-                  Self::set_lc_time(&mut lc_time.1);
-               },
-               LC_MONETARY => {
-                  lc_monetary.0 = lc;
-                  Self::set_lc_monetary(&mut lc_monetary.1);
-               },
-               LC_MESSAGES => {
-                  lc_messages.0 = lc;
-                  Self::set_lc_messages(&mut lc_messages.1);
-               }
-               LC_ADDRESS => {
-                  lc_addr.0 = lc;
-                  Self::set_lc_addr(&mut lc_addr.1);
-               },
-               LC_MEASUREMENT => {
-                  lc_measure.0 = lc;
-                  Self::set_lc_measure(&mut lc_measure.1)
-               },
-            }
-            Ok(true)
-         },
-         Err(err) => Err(err)
-      }
+      //       match keyword {
+      //          LANG => *lang = lc,
+      //          LC_NUMERIC => {
+      //             lc_numeric.0 = lc;
+      //             Self::set_lc_numeric(&mut lc_numeric.1);
+      //          },
+      //          LC_TIME => {
+      //             lc_time.0 = lc;
+      //             Self::set_lc_time(&mut lc_time.1);
+      //          },
+      //          LC_MONETARY => {
+      //             lc_monetary.0 = lc;
+      //             Self::set_lc_monetary(&mut lc_monetary.1);
+      //          },
+      //          LC_MESSAGES => {
+      //             lc_messages.0 = lc;
+      //             Self::set_lc_messages(&mut lc_messages.1);
+      //          }
+      //          LC_ADDRESS => {
+      //             lc_addr.0 = lc;
+      //             Self::set_lc_addr(&mut lc_addr.1);
+      //          },
+      //          LC_MEASUREMENT => {
+      //             lc_measure.0 = lc;
+      //             Self::set_lc_measure(&mut lc_measure.1)
+      //          },
+      //       }
+      //       Ok(true)
+      //    },
+      //    Err(err) => Err(err)
+      // }
+      Ok(true)
    }
 }
 
@@ -380,7 +393,7 @@ mod test {
             //    Err(err) => eprintln!("Error: {}", err)
             // }
             locale_mn.list_prefered_langs().iter().for_each(|(key, lang_reg)| println!("{} => {}", key, lang_reg));
-            println!("{}", locale_mn.language());
+            println!("{:#?}", locale_mn.language());
             assert_eq!(locale_mn.numeric(), "ខ្មែរ_កម្ពុជា");
          },
          Err(err) => eprintln!("{}", err)
