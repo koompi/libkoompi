@@ -1,4 +1,6 @@
-// use udev::{Devices, Enumerator, Hwdb};
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use udev::{Devices, Enumerator};
 
 #[cfg(test)]
 mod tests {
