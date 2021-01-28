@@ -1,6 +1,6 @@
 use std::io::Error;
 use serde::{Deserialize};
-use crate::helpers::{get_val_from_keyval, exec_cmd, get_list_by_sep};
+use crate::helpers::{get_val_from_keyval, exec_cmd, get_list_by_sep, read_content, write_content};
 use std::fmt::{self, Display, Formatter};
 const LOCALE: &'static str = "locale";
 const LOCALE_CTL: &'static str = "localectl";
@@ -43,7 +43,6 @@ pub struct LocaleManager {
    lc_addr: (String, LCAddress),
    lc_measure: (String,LCMeasure),
    list_locales: Vec<String>,
-   list_regions: Vec<(String, String)>,
    list_langs: Vec<(String, String)>,
 }
 
@@ -51,6 +50,8 @@ pub struct LocaleManager {
 impl LocaleManager {
    /// Initialize method
    pub fn new() -> Result<Self, Error> {
+      Self::write_file()?;
+
       let mut locale_mn = Self::default();
       let Self {
          lang,
@@ -111,14 +112,14 @@ impl LocaleManager {
       }
    }
 
-   /// Return a list of all enabled regions
-   pub fn list_regions(&self) -> Vec<&str> {
-      self.list_regions.iter().map(|(_, reg)| reg.as_str()).collect()
+   /// Return a list of all enabled prefered languages
+   pub fn list_prefered_langs(&self) -> Vec<(&str, &str)> {
+      self.list_langs.iter().map(|(key, lang)| (key.as_str(), *lang.split("(").collect::<Vec<&str>>().first().unwrap_or(&lang.as_str()))).collect()
    }
 
-   /// Return a list of all enabled languages
-   pub fn list_prefered_langs(&self) -> Vec<&str> {
-      self.list_langs.iter().map(|(_, lang)| lang.as_str()).collect()
+   /// Return a list of all enabled locale formatted as "lang - region (locale)"
+   pub fn list_langs_regions(&self) -> Vec<(&str, &str)> {
+      self.list_langs.iter().map(|(key, lang)| (key.as_str(), lang.as_str())).collect()
    }
 
    /// Return a list of all enabled locales
@@ -128,7 +129,10 @@ impl LocaleManager {
 
    /// Return current LC_NUMERIC
    pub fn numeric(&self) -> &str {
-      self.lc_numeric.0.as_str()
+      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_numeric.0.replace("-", "").to_lowercase()) {
+         Some((_, lang)) => lang.as_str(),
+         None => self.lc_numeric.0.as_str()
+      }
    }
 
    /// Return details of current LC_NUMERIC
@@ -138,7 +142,10 @@ impl LocaleManager {
 
    /// Return current LC_TIME
    pub fn time(&self) -> &str {
-      self.lc_time.0.as_str()
+      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_time.0.replace("-", "").to_lowercase()) {
+         Some((_, lang)) => lang.as_str(),
+         None => self.lc_time.0.as_str()
+      }
    }
 
    /// Return details of current LC_TIME
@@ -148,9 +155,11 @@ impl LocaleManager {
 
    /// Return current LC_MONETARY
    pub fn monetary(&self) -> &str {
-      self.lc_monetary.0.as_str()
+      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_monetary.0.replace("-", "").to_lowercase()) {
+         Some((_, lang)) => lang.as_str(),
+         None => self.lc_monetary.0.as_str()
+      }
    }
-
 
    /// Return details of current LC_MONETARY
    pub fn monetary_details(&self) -> &LCMonetary {
@@ -159,7 +168,10 @@ impl LocaleManager {
 
    /// Return current LC_MESSAGES
    pub fn messages(&self) -> &str {
-      self.lc_messages.0.as_str()
+      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_messages.0.replace("-", "").to_lowercase()) {
+         Some((_, lang)) => lang.as_str(),
+         None => self.lc_messages.0.as_str()
+      }
    }
 
    /// Return details of current LC_MESSAGES
@@ -169,7 +181,10 @@ impl LocaleManager {
 
    /// Return current LC_ADDRESS
    pub fn address(&self) -> &str {
-      self.lc_addr.0.as_str()
+      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_addr.0.replace("-", "").to_lowercase()) {
+         Some((_, lang)) => lang.as_str(),
+         None => self.lc_addr.0.as_str()
+      }
    }
 
    /// Return details of current LC_ADDRESS
@@ -179,7 +194,10 @@ impl LocaleManager {
 
    /// Return current LC_MEASUREMENT
    pub fn measurement(&self) -> &str {
-      self.lc_measure.0.as_str()
+      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_measure.0.replace("-", "").to_lowercase()) {
+         Some((_, lang)) => lang.as_str(),
+         None => self.lc_measure.0.as_str()
+      }
    }
 
    /// Return details of LC_MEASUREMENT
@@ -240,32 +258,35 @@ impl LocaleManager {
 
 // Private Methods
 impl LocaleManager {
+   /// write content from /etc to HOME if not exists
+   fn write_file() -> Result<(), Error> {
+      match read_content("/etc/locale.conf") {
+         Ok(content) => match write_content(dirs::config_dir().unwrap().join("locale.conf"), &content) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err), 
+         },
+         Err(err) => Err(err)
+      }
+   }
+
    /// Fetch all the Language and region of enabled locales
    fn fetch_list_region_lang(&mut self) {
       let mut ls_langs = Vec::new();
-      let mut ls_regs = Vec::new();
       self.list_locales.iter().for_each(|locale| {
          std::env::set_var("LC_ADDRESS", locale);
          match exec_cmd(LOCALE, vec!["lang_name", "country_name"]) {
             Ok(stdout) => {
                if !stdout.trim().is_empty() {
-                  let mut lines = stdout.lines();
-                  if let Some(lang) = lines.next() {
-                     ls_langs.push((locale.to_owned(), lang.trim().to_owned()));
-                  }
-                  if let Some(region) = lines.next() {
-                     ls_regs.push((locale.to_owned(), region.trim().to_owned()));
-                  }
+                  let lang_reg = stdout.lines().map(|line| line.trim()).collect::<Vec<&str>>().join(" - ");
+                  ls_langs.push((locale.to_owned(), format!("{} ({})", lang_reg.trim(), locale)));
                } else {
                   ls_langs.push((locale.to_owned(), locale.to_owned()));
-                  ls_regs.push((locale.to_owned(), locale.to_owned()));
                }
             },
             Err(err) => eprintln!("{}", err),
          }
       });
       self.list_langs = ls_langs;
-      self.list_regions = ls_regs;
    }
 
    /// Fetch current locale LC_NUMERIC
@@ -348,19 +369,19 @@ mod test {
    fn test_locale_manager() {
       match LocaleManager::new() {
          Ok(mut locale_mn) => {
-            match locale_mn.set_locale(LC_Keywords::LC_NUMERIC, "km_KH.UTF-8") {
-               Ok(is_sucess) => {
-                  if is_sucess {
-                     println!("Success set locale {}", LC_Keywords::LC_NUMERIC)
-                  } else {
-                     println!("Can not set locale {}", LC_Keywords::LC_NUMERIC)
-                  }
-               },
-               Err(err) => eprintln!("Error: {}", err)
-            }
-            locale_mn.list_prefered_langs().iter().zip(locale_mn.list_regions()).for_each(|(lang, reg)| println!("{}_{}", lang, reg));
+            // match locale_mn.set_locale(LC_Keywords::LC_NUMERIC, "km_KH.UTF-8") {
+            //    Ok(is_sucess) => {
+            //       if is_sucess {
+            //          println!("Success set locale {}", LC_Keywords::LC_NUMERIC)
+            //       } else {
+            //          println!("Can not set locale {}", LC_Keywords::LC_NUMERIC)
+            //       }
+            //    },
+            //    Err(err) => eprintln!("Error: {}", err)
+            // }
+            locale_mn.list_prefered_langs().iter().for_each(|(key, lang_reg)| println!("{} => {}", key, lang_reg));
             println!("{}", locale_mn.language());
-            assert_eq!(locale_mn.numeric(), "km_KH.UTF-8");
+            assert_eq!(locale_mn.numeric(), "ខ្មែរ_កម្ពុជា");
          },
          Err(err) => eprintln!("{}", err)
       }
