@@ -13,6 +13,8 @@ serde = { version = "1.0.120", features = ["derive"] }
 toml = "^0.5"
 udev = "0.6.0"
 libmath = "0.2.1"
+regex = "1.4"
+dirs = "3.0"
 ascii = "1.0.0"
 log = "0.4.13"
 bitflags = "1.2.1"

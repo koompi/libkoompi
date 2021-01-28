@@ -66,7 +66,8 @@ impl DateTimeManager {
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
       let mut res = false;
       if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-timezone", tz]){
+         // println!("{:?}", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]);
+         match exec_cmd("pkexec", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]){
             Ok(_) => {
                self.timezone = tz.to_owned();
                Self::load_info(self);
@@ -74,6 +75,17 @@ impl DateTimeManager {
             },
             Err(err) => eprintln!("{}", err), // error handling here
          }
+
+         // let output = std::process::Command::new("pkexec").arg("timedatectl").arg("set-timezone").arg(tz).output()?;
+
+         // if output.status.success() {
+         //    self.timezone = tz.to_owned();
+         //    Self::load_info(self);
+         //    res = true;
+         // }
+         // else if let Ok(stderr) = String::from_utf8(output.stderr) {
+         //    return Err(Error::new(ErrorKind::Other, stderr));
+         // }
       }
       Ok(res)
    }
@@ -145,7 +157,7 @@ mod tests {
    use super::DateTimeManager;
 
    #[test]
-   fn it_works() {
+   fn test_dt_manager() {
       match DateTimeManager::new() {
          Ok(mut dt_mn) => {
             if let Ok(res) = dt_mn.set_ntp(false) {
@@ -153,9 +165,15 @@ mod tests {
                   assert_eq!(*dt_mn.ntp(), false)
                }
             }
-            
-        },
-        Err(err) => println!("{}", err),
-    }
-    }
+
+            if let Ok(res) = dt_mn.set_timezone("Asia/Phnom_Penh") {
+               if res {
+                  println!("{}", *dt_mn.timezone());
+               }
+            } 
+            assert_eq!(*dt_mn.timezone(), "Asia/Phnom_Penh");
+         },
+         Err(err) => println!("{}", err)
+      }
+   }
 }
