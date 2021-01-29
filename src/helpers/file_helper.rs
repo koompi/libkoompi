@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{prelude::*, BufRead, Result, Lines, BufReader, ErrorKind, Error};
+use std::io::{prelude::*, BufRead, Result, Lines, BufReader};
 use std::path::Path;
 
 pub fn read_lines<P>(filename: P) -> Result<Lines<BufReader<File>>>
@@ -22,4 +22,11 @@ where P: AsRef<Path> {
       file.write_all(content.as_bytes())?;
       Ok(())
    }
+}
+
+pub fn write_content_overwrite<P>(filename: P, content: &str) -> Result<()>
+where P: AsRef<Path> {
+   let mut file = File::create(filename)?;
+   file.write_all(content.as_bytes())?;
+   Ok(())
 }
