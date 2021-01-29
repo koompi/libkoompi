@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{prelude::*, BufRead, Result, Lines, BufReader, ErrorKind, Error};
+use std::io::{prelude::*, BufRead, Result, Lines, BufReader};
 use std::path::Path;
 
 pub fn read_lines<P>(filename: P) -> Result<Lines<BufReader<File>>>

@@ -112,29 +112,30 @@ impl LocaleManager {
 
    /// Return current LANG
    pub fn language(&self) -> &str {
-      match self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lang.replace("-", "").to_lowercase()) {
+      match self.list_langs.iter().find(|(k, _)| *k.replace("-", "").to_lowercase() == self.lang.replace("-", "").to_lowercase()) {
          Some((_, lang)) => lang.as_str(),
          None => self.lang.as_str()
       }
    }
 
-   /// Return a list of all enabled prefered languages
+   /// Return a list of all prefered languages
    pub fn list_prefered_langs(&self) -> Vec<(&str, &str)> {
       if self.language.is_empty() {
          vec![(self.lang.as_str(), self.language())]
       } else {
          let ls_lang_reg = self.list_langs.iter().map(|(key, lang)| (key.as_str(), *lang.split("(").collect::<Vec<&str>>().first().unwrap_or(&lang.as_str()))).collect::<Vec<(&str, &str)>>();
          let ls_prefered_langs = self.language.split(":").collect::<Vec<&str>>().iter().map(|lang| format!("{}.utf8", lang)).collect::<Vec<String>>();
-         ls_lang_reg.into_iter().filter(|(k, _)| ls_prefered_langs.contains(&k.to_string())).collect()
+         // ls_lang_reg.into_iter().filter(|(k, _)| ls_prefered_langs.contains(&k.to_string())).collect()
+         ls_prefered_langs.into_iter().map(|lc| ls_lang_reg.iter().find(|(k, _)| k.replace("-", "").to_lowercase() == lc.to_lowercase()).unwrap_or(&(self.lang.as_str(), self.language())).clone()).collect()
       }
    }
 
-   /// Return a list of all enabled locale formatted as "lang - region (locale)"
+   /// Return a list of all enabled locales formatted as "lang - region (locale)"
    pub fn list_langs_regions(&self) -> Vec<(&str, &str)> {
       self.list_langs.iter().map(|(key, lang)| (key.as_str(), lang.as_str())).collect()
    }
 
-   /// Return a list of all enabled locales
+   /// Return a list of all enabled locales in raw format
    pub fn list_locales(&self) -> Vec<&str> {
       self.list_locales.iter().map(AsRef::as_ref).collect()
    }
