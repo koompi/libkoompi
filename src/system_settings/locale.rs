@@ -1,21 +1,29 @@
 use std::io::Error;
-use serde::{Deserialize};
-use crate::helpers::{get_val_from_keyval, exec_cmd, get_list_by_sep, read_content, write_content};
 use std::fmt::{self, Display, Formatter};
+use std::path::Path;
+use serde::{Deserialize};
+use crate::helpers::{get_val_from_keyval, exec_cmd, get_list_by_sep, read_content, write_content, write_content_overwrite};
 const LOCALE: &'static str = "locale";
 const LOCALE_DEF: &'static str = "localedef";
+const LANGUAGE: &'static str = "LANGUAGE";
 
 /// List of LC_* variants
 #[allow(non_camel_case_types)]
 pub enum LC_Keywords {
    LANG,
-   LANGUAGE,
+   // LC_CTYPE,
    LC_NUMERIC,
    LC_TIME,
+   // LC_COLLATE,
    LC_MONETARY,
    LC_MESSAGES,
+   // LC_PAPER,
+   // LC_NAME,
    LC_ADDRESS,
+   // LC_TELEPHONE,
    LC_MEASUREMENT,
+   // LC_IDEN,
+   // LC_ALL,
 }
 
 impl Display for LC_Keywords {
@@ -23,15 +31,38 @@ impl Display for LC_Keywords {
       use LC_Keywords::*;
       write!(f, "{}", match self {
          LANG => "LANG",
-         LANGUAGE => "LANGUAGE",
+         // LC_CTYPE => "LC_CTYPE",
          LC_NUMERIC => "LC_NUMERIC",
          LC_TIME => "LC_TIME",
+         // LC_COLLATE => "LC_COLLATE",
          LC_MONETARY => "LC_MONETARY",
          LC_MESSAGES => "LC_MESSAGES",
+         // LC_PAPER => "LC_PAPER",
+         // LC_NAME => "LC_NAME",
+         // LC_TELEPHONE => "LC_TELEPHONE",
          LC_ADDRESS => "LC_ADDRESS",
          LC_MEASUREMENT => "LC_MEASUREMENT",
+         // LC_IDEN => "LC_IDENTIFICATION",
+         // LC_ALL => "LC_ALL",
       })
    }
+}
+
+// Available export target variants
+pub enum ExportTarget {
+   Local,
+   Global,
+}
+
+// Structure of LocaleConf (file locale.conf format)
+pub struct LocaleConf {
+   pub lang: String,
+   pub language: String,
+   pub lc_numeric: String,
+   pub lc_time: String,
+   pub lc_monetary: String,
+   pub lc_address: String,
+   pub lc_measurement: String,
 }
 
 /// Structure of System-wide Localization Manager
@@ -53,7 +84,7 @@ pub struct LocaleManager {
 impl LocaleManager {
    /// Initialize method
    pub fn new() -> Result<Self, Error> {
-      Self::write_file()?;
+      Self::clone_from_etc()?;
 
       let mut locale_mn = Self::default();
       let Self {
@@ -98,7 +129,7 @@ impl LocaleManager {
          Err(err) => return Err(err), // error handling here
       }
 
-      *language = std::env::var("LANGUAGE").unwrap_or(String::new());
+      *language = std::env::var(LANGUAGE).unwrap_or(String::new());
 
       match exec_cmd(LOCALE_DEF, vec!["--list-archive"]) {
          Ok(stdout) => {
@@ -121,7 +152,7 @@ impl LocaleManager {
    /// Return a list of all prefered languages
    pub fn list_prefered_langs(&self) -> Vec<(&str, &str)> {
       if self.language.is_empty() {
-         vec![(self.lang.as_str(), self.language())]
+         vec![(self.lang.as_str(), self.language().split("(").collect::<Vec<&str>>().first().unwrap_or(&self.language()))]
       } else {
          let ls_lang_reg = self.list_langs.iter().map(|(key, lang)| (key.as_str(), *lang.split("(").collect::<Vec<&str>>().first().unwrap_or(&lang.as_str()))).collect::<Vec<(&str, &str)>>();
          let ls_prefered_langs = self.language.split(":").collect::<Vec<&str>>().iter().map(|lang| format!("{}.utf8", lang)).collect::<Vec<String>>();
@@ -219,61 +250,46 @@ impl LocaleManager {
    }
 
    /// Set locale by specified keyword and locale
-   pub fn set_locale(&mut self, keyword: LC_Keywords, locale: &str) -> Result<bool, Error> {
-      // match exec_cmd(LOCALE_CTL, vec!["set-locale", format!("{}={}", keyword, locale).as_str()]) {
-      //    Ok(_) => {
-      //       use LC_Keywords::*;
-      //       let Self {
-      //          lang,
-      //          lc_numeric,
-      //          lc_time,
-      //          lc_monetary,
-      //          lc_messages,
-      //          lc_addr,
-      //          lc_measure,
-      //          ..
-      //       } = self;
-      //       let lc = locale.to_string();
-
-      //       match keyword {
-      //          LANG => *lang = lc,
-      //          LC_NUMERIC => {
-      //             lc_numeric.0 = lc;
-      //             Self::set_lc_numeric(&mut lc_numeric.1);
-      //          },
-      //          LC_TIME => {
-      //             lc_time.0 = lc;
-      //             Self::set_lc_time(&mut lc_time.1);
-      //          },
-      //          LC_MONETARY => {
-      //             lc_monetary.0 = lc;
-      //             Self::set_lc_monetary(&mut lc_monetary.1);
-      //          },
-      //          LC_MESSAGES => {
-      //             lc_messages.0 = lc;
-      //             Self::set_lc_messages(&mut lc_messages.1);
-      //          }
-      //          LC_ADDRESS => {
-      //             lc_addr.0 = lc;
-      //             Self::set_lc_addr(&mut lc_addr.1);
-      //          },
-      //          LC_MEASUREMENT => {
-      //             lc_measure.0 = lc;
-      //             Self::set_lc_measure(&mut lc_measure.1)
-      //          },
-      //       }
-      //       Ok(true)
-      //    },
-      //    Err(err) => Err(err)
-      // }
-      Ok(true)
+   pub fn set_locale(&mut self, lc_conf: LocaleConf, target: ExportTarget) -> Result<(), Error> {
+      let data = Self::to_locale_string(lc_conf);
+      match target {
+         ExportTarget::Local => self.write_local(&data),
+         ExportTarget::Global => {
+            let p = Path::new("/etc/locale.conf");
+            if let Err(err) = self.write_local(&data) {
+               return Err(err);
+            } 
+            Ok(write_content_overwrite(p, &data)?)
+         }
+      }
    }
+
 }
 
 // Private Methods
 impl LocaleManager {
+   // write locale string to HOME config
+   fn write_local(&self, data: &str) -> Result<(), Error> {
+      let path = dirs::config_dir().unwrap().join("locale.conf");
+      Ok(write_content_overwrite(path, data)?)
+   }
+
+   // format locale conf to string
+   fn to_locale_string(locale_conf: LocaleConf) -> String {
+      format!(
+         "LANG={lang}\nLANGUAGE={language}\nLC_NUMERIC={lc_numeric}\nLC_TIME={lc_time}\nLC_MONETARY={lc_monetary}\nLC_ADDRESS={lc_address}\nLC_MEASUREMENT={lc_measurement}\n",
+         lang = locale_conf.lang,
+         language = locale_conf.language,
+         lc_numeric = locale_conf.lc_numeric,
+         lc_time = locale_conf.lc_time,
+         lc_monetary = locale_conf.lc_monetary,
+         lc_address = locale_conf.lc_address,
+         lc_measurement = locale_conf.lc_measurement,
+      )
+   }
+
    /// write content from /etc to HOME if not exists
-   fn write_file() -> Result<(), Error> {
+   fn clone_from_etc() -> Result<(), Error> {
       match read_content("/etc/locale.conf") {
          Ok(content) => match write_content(dirs::config_dir().unwrap().join("locale.conf"), &content) {
             Ok(_) => Ok(()),
@@ -378,21 +394,25 @@ impl LocaleManager {
 
 #[cfg(test)]
 mod test {
-   use super::{LocaleManager, LC_Keywords};
+   use super::{LocaleManager, LC_Keywords, LocaleConf, ExportTarget};
    #[test]
    fn test_locale_manager() {
       match LocaleManager::new() {
          Ok(mut locale_mn) => {
-            // match locale_mn.set_locale(LC_Keywords::LC_NUMERIC, "km_KH.UTF-8") {
-            //    Ok(is_sucess) => {
-            //       if is_sucess {
-            //          println!("Success set locale {}", LC_Keywords::LC_NUMERIC)
-            //       } else {
-            //          println!("Can not set locale {}", LC_Keywords::LC_NUMERIC)
-            //       }
-            //    },
-            //    Err(err) => eprintln!("Error: {}", err)
-            // }
+            let lc_conf = LocaleConf {
+               lang: String::from("en_US.utf8"),
+               language: String::from("km_KH:en_US"),
+               lc_numeric: String::from("km_KH.utf8"),
+               lc_time: String::from("km_KH.utf8"),
+               lc_monetary: String::from("km_KH.utf8"),
+               lc_address: String::from("km_KH.utf8"),
+               lc_measurement: String::from("km_KH.utf8"),
+            };
+
+            match locale_mn.set_locale(lc_conf, ExportTarget::Local) {
+               Ok(()) => println!("Success set locale"),
+               Err(err) => eprintln!("Error: {}", err),
+            }
             locale_mn.list_prefered_langs().iter().for_each(|(key, lang_reg)| println!("{} => {}", key, lang_reg));
             println!("{:#?}", locale_mn.language());
             assert_eq!(locale_mn.numeric(), "ខ្មែរ_កម្ពុជា");

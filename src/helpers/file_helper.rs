@@ -23,3 +23,10 @@ where P: AsRef<Path> {
       Ok(())
    }
 }
+
+pub fn write_content_overwrite<P>(filename: P, content: &str) -> Result<()>
+where P: AsRef<Path> {
+   let mut file = File::create(filename)?;
+   file.write_all(content.as_bytes())?;
+   Ok(())
+}
