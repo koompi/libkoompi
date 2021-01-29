@@ -9,21 +9,14 @@ const LANGUAGE: &'static str = "LANGUAGE";
 
 /// List of LC_* variants
 #[allow(non_camel_case_types)]
-pub enum LC_Keywords {
+enum LC_Keywords {
    LANG,
-   // LC_CTYPE,
    LC_NUMERIC,
    LC_TIME,
-   // LC_COLLATE,
    LC_MONETARY,
    LC_MESSAGES,
-   // LC_PAPER,
-   // LC_NAME,
    LC_ADDRESS,
-   // LC_TELEPHONE,
    LC_MEASUREMENT,
-   // LC_IDEN,
-   // LC_ALL,
 }
 
 impl Display for LC_Keywords {
@@ -31,19 +24,12 @@ impl Display for LC_Keywords {
       use LC_Keywords::*;
       write!(f, "{}", match self {
          LANG => "LANG",
-         // LC_CTYPE => "LC_CTYPE",
          LC_NUMERIC => "LC_NUMERIC",
          LC_TIME => "LC_TIME",
-         // LC_COLLATE => "LC_COLLATE",
          LC_MONETARY => "LC_MONETARY",
          LC_MESSAGES => "LC_MESSAGES",
-         // LC_PAPER => "LC_PAPER",
-         // LC_NAME => "LC_NAME",
-         // LC_TELEPHONE => "LC_TELEPHONE",
          LC_ADDRESS => "LC_ADDRESS",
          LC_MEASUREMENT => "LC_MEASUREMENT",
-         // LC_IDEN => "LC_IDENTIFICATION",
-         // LC_ALL => "LC_ALL",
       })
    }
 }
@@ -259,7 +245,7 @@ impl LocaleManager {
             if let Err(err) = self.write_local(&data) {
                return Err(err);
             } 
-            Ok(write_content_overwrite(p, &data)?)
+            write_content_overwrite(p, &data)
          }
       }
    }
@@ -394,7 +380,7 @@ impl LocaleManager {
 
 #[cfg(test)]
 mod test {
-   use super::{LocaleManager, LC_Keywords, LocaleConf, ExportTarget};
+   use super::{LocaleManager, LocaleConf, ExportTarget};
    #[test]
    fn test_locale_manager() {
       match LocaleManager::new() {
