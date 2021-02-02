@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::helpers::{get_val_from_keyval, exec_cmd, read_content, write_content, write_content_overwrite};
 use super::locale_category::*;
 
+pub const LS_MEASURE_UNITS: [(&str, &str); 3] = [("km_KH.utf8", "Metric"), ("en_US.utf8", "Imperial US"), ("en_GB.utf8", "Imperial UK")];
 const LOCALE: &'static str = "locale";
 const LOCALE_DEF: &'static str = "localedef";
 const LANGUAGE: &'static str = "LANGUAGE";
