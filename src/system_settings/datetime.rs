@@ -46,7 +46,7 @@ impl DateTimeManager {
             let mut ls_timezones: Vec<String> = stdout.lines().map(|line| line.trim().to_string()).collect();
             ls_timezones.push(String::from("Asia/Phnom_Penh"));
             ls_timezones.sort();
-            datetime_mn.list_timezones = ls_timezones.into_iter().group_by(|tz| tz.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>()[0].clone()).into_iter().map(|(con, cities)| (con.to_string(), cities.collect::<Vec<String>>())).collect();
+            datetime_mn.list_timezones = ls_timezones.into_iter().group_by(|tz| tz.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>()[0].clone()).into_iter().map(|(con, cities)| (con.to_string(), cities.collect::<Vec<String>>().into_iter().map(|city| city.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>().last().unwrap().clone()).collect())).collect();
          },
          Err(err) => eprintln!("{}", err), // error handling here
       }
@@ -71,7 +71,6 @@ impl DateTimeManager {
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
       let mut res = false;
       if !self.ntp {
-         // println!("{:?}", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]);
          match exec_cmd("pkexec", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]){
             Ok(_) => {
                self.timezone = tz.to_owned();
@@ -80,17 +79,6 @@ impl DateTimeManager {
             },
             Err(err) => eprintln!("{}", err), // error handling here
          }
-
-         // let output = std::process::Command::new("pkexec").arg("timedatectl").arg("set-timezone").arg(tz).output()?;
-
-         // if output.status.success() {
-         //    self.timezone = tz.to_owned();
-         //    Self::load_info(self);
-         //    res = true;
-         // }
-         // else if let Ok(stderr) = String::from_utf8(output.stderr) {
-         //    return Err(Error::new(ErrorKind::Other, stderr));
-         // }
       }
       Ok(res)
    }
