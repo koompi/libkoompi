@@ -67,7 +67,14 @@ impl LocaleManager {
 
       match exec_cmd(LOCALE_DEF, vec!["--list-archive"]) {
          Ok(stdout) => {
-            *list_locales = stdout.lines().map(|line| line.to_string()).collect();
+            *list_locales = stdout.lines().map(|line| {
+               let line_break = line.split('.').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>();
+               let locale = line_break.first().unwrap();
+               let uppercase_charset = line_break.last().unwrap_or(&String::new()).to_uppercase();
+               let digit_idx = uppercase_charset.chars().position(|c| c.is_numeric()).unwrap();
+               let formatted_charset = uppercase_charset.split_at(digit_idx);
+               format!("{}.{}-{}", locale, formatted_charset.0, formatted_charset.1)
+            }).collect();
          },
          Err(err) => return Err(err), // error handling here
       }
@@ -77,7 +84,7 @@ impl LocaleManager {
 
    /// Return current LANG
    pub fn language(&self) -> (&str, &str) {
-      match self.list_langs.iter().find(|&(k, _)| *k.replace("-", "").to_lowercase() == self.lang.replace("-", "").to_lowercase()) {
+      match self.list_langs.iter().find(|&(k, _)| *k == self.lang) {
          Some((key, lang)) => (key, lang),
          None => (&self.lang, &self.lang)
       }
@@ -89,9 +96,9 @@ impl LocaleManager {
          vec![(&self.lang, self.language().1.split("(").collect::<Vec<&str>>().first().unwrap_or(&self.language().1))]
       } else {
          let ls_lang_reg = self.list_langs.iter().map(|(key, lang)| (key.as_str(), *lang.split("(").collect::<Vec<&str>>().first().unwrap_or(&lang.as_str()))).collect::<Vec<(&str, &str)>>();
-         let ls_prefered_langs = self.language.split(":").collect::<Vec<&str>>().iter().map(|lang| format!("{}.utf8", lang)).collect::<Vec<String>>();
+         let ls_prefered_langs = self.language.split(":").collect::<Vec<&str>>().iter().map(|lang| format!("{}.UTF-8", lang)).collect::<Vec<String>>();
          // ls_lang_reg.into_iter().filter(|(k, _)| ls_prefered_langs.contains(&k.to_string())).collect()
-         ls_prefered_langs.into_iter().map(|lc| ls_lang_reg.iter().find(|(k, _)| k.replace("-", "").to_lowercase() == lc.to_lowercase()).unwrap_or(&(self.language())).clone()).collect()
+         ls_prefered_langs.into_iter().map(|lc| ls_lang_reg.iter().find(|(k, _)| *k == lc).unwrap_or(&(self.language())).clone()).collect()
       }
    }
 
@@ -107,7 +114,7 @@ impl LocaleManager {
 
    /// Return current LC_NUMERIC
    pub fn numeric(&self) -> (&String, &String) {
-      self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_numeric.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_numeric.0, &self.lc_numeric.0))
+      self.list_langs.iter().find(|(k, _)| *k.to_string() == self.lc_numeric.0).unwrap_or((&self.lc_numeric.0, &self.lc_numeric.0))
    }
 
    /// Return details of current LC_NUMERIC
@@ -117,7 +124,7 @@ impl LocaleManager {
 
    /// Return current LC_TIME
    pub fn time(&self) -> (&String, &String) {
-      self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_time.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_time.0, &self.lc_time.0))
+      self.list_langs.iter().find(|(k, _)| *k.to_string() == self.lc_time.0).unwrap_or((&self.lc_time.0, &self.lc_time.0))
    }
 
    /// Return details of current LC_TIME
@@ -127,7 +134,7 @@ impl LocaleManager {
 
    /// Return current LC_MONETARY
    pub fn monetary(&self) -> (&String, &String) {
-      self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_monetary.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_monetary.0, &self.lc_monetary.0))
+      self.list_langs.iter().find(|(k, _)| *k.to_string() == self.lc_monetary.0).unwrap_or((&self.lc_monetary.0, &self.lc_monetary.0))
    }
 
    /// Return details of current LC_MONETARY
@@ -137,7 +144,7 @@ impl LocaleManager {
 
    /// Return current LC_MEASUREMENT
    pub fn measurement(&self) -> (&String, &String) {
-      self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_measure.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_measure.0, &self.lc_measure.0))
+      self.list_langs.iter().find(|(k, _)| *k.to_string() == self.lc_measure.0).unwrap_or((&self.lc_measure.0, &self.lc_measure.0))
    }
 
    /// Return details of LC_MEASUREMENT
@@ -328,7 +335,7 @@ mod test {
                Err(err) => eprintln!("Error: {}", err),
             }
             locale_mn.list_prefered_langs().iter().for_each(|(key, lang_reg)| println!("{} => {}", key, lang_reg));
-            println!("{:#?}", locale_mn.language());
+            println!("{:#?}", locale_mn);
             assert_eq!(locale_mn.numeric().1, "ខ្មែរ_កម្ពុជា");
          },
          Err(err) => eprintln!("{}", err)
