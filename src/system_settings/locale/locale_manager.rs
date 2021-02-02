@@ -17,8 +17,6 @@ pub struct LocaleManager {
    lc_numeric: (String, LCNumeric),
    lc_time: (String, LCTime),
    lc_monetary: (String, LCMonetary),
-   lc_messages: (String, LCMessages),
-   lc_addr: (String, LCAddress),
    lc_measure: (String,LCMeasure),
    list_locales: Vec<String>,
    list_langs: HashMap<String, String>,
@@ -37,8 +35,6 @@ impl LocaleManager {
          lc_numeric,
          lc_time,
          lc_monetary,
-         lc_messages,
-         lc_addr,
          lc_measure,
          list_locales,
          ..
@@ -58,12 +54,6 @@ impl LocaleManager {
                } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
                   lc_monetary.0 = get_val_from_keyval(line, None);
                   Self::set_lc_monetary(&mut lc_monetary.1);
-               } else if line.starts_with(format!("{}", LC_Keywords::LC_MESSAGES).as_str()) {
-                  lc_messages.0 = get_val_from_keyval(line, None);
-                  Self::set_lc_messages(&mut lc_messages.1);
-               } else if line.starts_with(format!("{}", LC_Keywords::LC_ADDRESS).as_str()) {
-                  lc_addr.0 = get_val_from_keyval(line, None);
-                  Self::set_lc_addr(&mut lc_addr.1);
                } else if line.starts_with(format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()) {
                   lc_measure.0 = get_val_from_keyval(line, None);
                   Self::set_lc_measure(&mut lc_measure.1);
@@ -145,26 +135,6 @@ impl LocaleManager {
       &self.lc_monetary.1
    }
 
-   /// Return current LC_MESSAGES
-   pub fn messages(&self) -> (&String, &String) {
-      self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_messages.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_messages.0, &self.lc_messages.0))
-   }
-
-   /// Return details of current LC_MESSAGES
-   pub fn messages_details(&self) -> &LCMessages {
-      &self.lc_messages.1
-   }
-
-   /// Return current LC_ADDRESS
-   pub fn address(&self) -> (&String, &String) {
-      self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_addr.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_addr.0, &self.lc_addr.0))
-   }
-
-   /// Return details of current LC_ADDRESS
-   pub fn address_details(&self) -> &LCAddress {
-      &self.lc_addr.1
-   }
-
    /// Return current LC_MEASUREMENT
    pub fn measurement(&self) -> (&String, &String) {
       self.list_langs.iter().find(|(k, _)| *k.to_lowercase() == self.lc_measure.0.replace("-", "").to_lowercase()).unwrap_or((&self.lc_measure.0, &self.lc_measure.0))
@@ -204,13 +174,12 @@ impl LocaleManager {
    // format locale conf to string
    fn to_locale_string(locale_conf: LocaleConf) -> String {
       format!(
-         "LANG={lang}\nLANGUAGE={language}\nLC_NUMERIC={lc_numeric}\nLC_TIME={lc_time}\nLC_MONETARY={lc_monetary}\nLC_ADDRESS={lc_address}\nLC_MEASUREMENT={lc_measurement}\n",
+         "LANG={lang}\nLANGUAGE={language}\nLC_NUMERIC={lc_numeric}\nLC_TIME={lc_time}\nLC_MONETARY={lc_monetary}\nLC_MEASUREMENT={lc_measurement}\n",
          lang = locale_conf.lang,
          language = locale_conf.language,
          lc_numeric = locale_conf.lc_numeric,
          lc_time = locale_conf.lc_time,
          lc_monetary = locale_conf.lc_monetary,
-         lc_address = locale_conf.lc_address,
          lc_measurement = locale_conf.lc_measurement,
       )
    }
@@ -288,26 +257,6 @@ impl LocaleManager {
       }
    }
 
-   /// Fetch current locale LC_MESSAGES
-   fn set_lc_messages(lc_messages: &mut LCMessages) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MESSAGES).as_str()]) {
-         Ok(stdout) => {
-            *lc_messages = toml::from_str(&stdout).unwrap_or_default(); 
-         },
-         Err(err) => eprintln!("{}", err), 
-      }
-   }
-
-   /// Fetch current locale LC_ADDRESS
-   fn set_lc_addr(lc_addr: &mut LCAddress) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_ADDRESS).as_str()]) {
-         Ok(stdout) => {
-            *lc_addr = toml::from_str(&stdout).unwrap_or_default(); 
-         },
-         Err(err) => eprintln!("{}", err), 
-      }
-   }
-
    /// Fetch current locale LC_MEASUREMENT
    fn set_lc_measure(lc_measure: &mut LCMeasure) {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()]) {
@@ -332,7 +281,6 @@ pub struct LocaleConf {
    pub lc_numeric: String,
    pub lc_time: String,
    pub lc_monetary: String,
-   pub lc_address: String,
    pub lc_measurement: String,
 }
 
@@ -343,8 +291,6 @@ enum LC_Keywords {
    LC_NUMERIC,
    LC_TIME,
    LC_MONETARY,
-   LC_MESSAGES,
-   LC_ADDRESS,
    LC_MEASUREMENT,
 }
 
@@ -356,8 +302,6 @@ impl Display for LC_Keywords {
          LC_NUMERIC => "LC_NUMERIC",
          LC_TIME => "LC_TIME",
          LC_MONETARY => "LC_MONETARY",
-         LC_MESSAGES => "LC_MESSAGES",
-         LC_ADDRESS => "LC_ADDRESS",
          LC_MEASUREMENT => "LC_MEASUREMENT",
       })
    }
@@ -376,7 +320,6 @@ mod test {
                lc_numeric: String::from("km_KH.utf8"),
                lc_time: String::from("km_KH.utf8"),
                lc_monetary: String::from("km_KH.utf8"),
-               lc_address: String::from("km_KH.utf8"),
                lc_measurement: String::from("km_KH.utf8"),
             };
 
@@ -386,7 +329,7 @@ mod test {
             }
             locale_mn.list_prefered_langs().iter().for_each(|(key, lang_reg)| println!("{} => {}", key, lang_reg));
             println!("{:#?}", locale_mn.language());
-            assert_eq!(locale_mn.numeric(), "ខ្មែរ_កម្ពុជា");
+            assert_eq!(locale_mn.numeric().1, "ខ្មែរ_កម្ពុជា");
          },
          Err(err) => eprintln!("{}", err)
       }
