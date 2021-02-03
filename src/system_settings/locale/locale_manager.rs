@@ -70,10 +70,16 @@ impl LocaleManager {
             *list_locales = stdout.lines().map(|line| {
                let line_break = line.split('.').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>();
                let locale = line_break.first().unwrap();
-               let uppercase_charset = line_break.last().unwrap_or(&String::new()).to_uppercase();
-               let digit_idx = uppercase_charset.chars().position(|c| c.is_numeric()).unwrap();
-               let formatted_charset = uppercase_charset.split_at(digit_idx);
-               format!("{}.{}-{}", locale, formatted_charset.0, formatted_charset.1)
+               match line_break.last() {
+                  Some(charset) => {
+                     let uppercase_charset = charset.to_uppercase();
+                     let digit_idx = uppercase_charset.chars().position(|c| c.is_numeric()).unwrap();
+                     let formatted_charset = uppercase_charset.split_at(digit_idx);
+                     format!("{}.{}-{}", locale, formatted_charset.0, formatted_charset.1)
+                  },
+                  None => locale.to_string()
+               }
+               
             }).collect();
          },
          Err(err) => return Err(err), // error handling here
