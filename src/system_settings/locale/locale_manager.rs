@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::helpers::{get_val_from_keyval, exec_cmd, read_content, write_content, write_content_overwrite};
 use super::locale_category::*;
 
-pub const LS_MEASURE_UNITS: [(&str, &str); 3] = [("km_KH.utf8", "Metric"), ("en_US.utf8", "Imperial US"), ("en_GB.utf8", "Imperial UK")];
+pub const LS_MEASURE_UNITS: [(&str, &str); 3] = [("km_KH.UTF-8", "Metric"), ("en_US.UTF-8", "Imperial US"), ("en_GB.UTF-8", "Imperial UK")];
 const LOCALE: &'static str = "locale";
 const LOCALE_DEF: &'static str = "localedef";
 const LANGUAGE: &'static str = "LANGUAGE";
@@ -210,7 +210,7 @@ impl LocaleManager {
          match exec_cmd(LOCALE, vec!["lang_name", "country_name"]) {
             Ok(stdout) => {
                if !stdout.trim().is_empty() {
-                  let lang_reg = stdout.lines().map(|line| line.trim()).collect::<Vec<&str>>().join(" - ");
+                  let lang_reg = stdout.lines().map(|line| line.trim()).collect::<Vec<&str>>().join(" — ");
                   ls_langs.insert(locale.to_owned(), format!("{} ({})", lang_reg.trim(), locale));
                } else {
                   ls_langs.insert(locale.to_owned(), locale.to_owned());
@@ -322,12 +322,12 @@ mod test {
       match LocaleManager::new() {
          Ok(mut locale_mn) => {
             let lc_conf = LocaleConf {
-               lang: String::from("en_US.utf8"),
+               lang: String::from("en_US.UTF-8"),
                language: String::from("km_KH:en_US"),
-               lc_numeric: String::from("km_KH.utf8"),
-               lc_time: String::from("km_KH.utf8"),
-               lc_monetary: String::from("km_KH.utf8"),
-               lc_measurement: String::from("km_KH.utf8"),
+               lc_numeric: String::from("km_KH.UTF-8"),
+               lc_time: String::from("km_KH.UTF-8"),
+               lc_monetary: String::from("km_KH.UTF-8"),
+               lc_measurement: String::from("km_KH.UTF-8"),
             };
 
             match locale_mn.set_locale(lc_conf) {
