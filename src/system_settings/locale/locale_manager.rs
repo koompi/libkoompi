@@ -70,7 +70,7 @@ impl LocaleManager {
             *list_locales = stdout.lines().map(|line| {
                let line_break = line.split('.').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>();
                let locale = line_break.first().unwrap();
-               match line_break.last() {
+               match line_break.get(1) {
                   Some(charset) => {
                      let uppercase_charset = charset.to_uppercase();
                      let digit_idx = uppercase_charset.chars().position(|c| c.is_numeric()).unwrap();
