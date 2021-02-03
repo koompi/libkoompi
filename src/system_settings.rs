@@ -1,7 +1,7 @@
 mod datetime;
 mod display;
-mod general;
+mod theme;
 
 pub use datetime::*;
 pub use display::*;
-pub use general::*;
+pub use theme::*;
