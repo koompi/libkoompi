@@ -1,5 +1,3 @@
-use super::errors::*;
-use std::str::FromStr;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ConnectionState {
     Unknown = 0,
@@ -196,19 +194,4 @@ pub enum ServiceState {
     Failed,
     Activating,
     Deactivating,
-}
-
-impl FromStr for ServiceState {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<ServiceState> {
-        match s {
-            "active" => Ok(ServiceState::Active),
-            "reloading" => Ok(ServiceState::Reloading),
-            "inactive" => Ok(ServiceState::Inactive),
-            "failed" => Ok(ServiceState::Failed),
-            "activating" => Ok(ServiceState::Activating),
-            "deactivating" => Ok(ServiceState::Deactivating),
-            _ => Err(ErrorKind::Service.into()),
-        }
-    }
 }

@@ -1,5 +1,6 @@
 pub mod datetime;
+pub mod devices;
 pub mod display;
 pub mod locale;
-pub mod devices;
 pub mod network;
+pub mod sounds;
