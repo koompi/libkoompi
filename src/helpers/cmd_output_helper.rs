@@ -11,8 +11,8 @@ pub fn get_bool_yesno(val: &str) -> bool {
 }
 
 pub fn get_val_from_keyval(line: &str, sep: Option<&str>) -> String {
-   match line.split(sep.unwrap_or("=")).collect::<Vec<&str>>().get(1) {
-      Some(val) => val.trim().to_string(),
+   match get_list_by_sep(line, sep.unwrap_or("=")).get(1) {
+      Some(val) => val.trim().replace("\"", ""),
       None => String::new()
    }
 }
@@ -30,4 +30,8 @@ pub fn exec_cmd(cmd: &str, args: Vec<&str>) -> Result<String, Error> {
    } else {
       Err(Error::new(ErrorKind::Other, ""))
    }
+}
+
+pub fn get_list_by_sep(val: &str, sep: &str) -> Vec<String> {
+   val.split(sep).map(ToOwned::to_owned).collect()
 }
