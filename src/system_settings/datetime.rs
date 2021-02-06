@@ -4,7 +4,7 @@ use getset::{Getters};
 use std::collections::HashMap;
 use itertools::Itertools;
 
-const TIMEDATE_CTL: &'static str = "timedatectl";
+const TIMEDATE_CTL: &str = "timedatectl";
 
 #[derive(Debug, Clone, Getters)]
 pub struct DateTimeManager {
