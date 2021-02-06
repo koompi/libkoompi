@@ -108,7 +108,6 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target = T>> OrgFreed
         )
         .and_then(|r: (dbus::Path<'static>,)| Ok(r.0))
     }
-
     fn activate_connection(
         &self,
         connection: dbus::Path,
