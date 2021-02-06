@@ -3,6 +3,8 @@ use libpulse_sys::def::pa_device_type_t;
 use libpulse_sys::def::pa_device_type_t::{Sink, Source};
 use libpulse_sys::volume::{pa_cvolume, pa_cvolume_avg, pa_volume_t, PA_VOLUME_NORM};
 use std::ptr::null;
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct Device {
     pub index: u32,
     pub type_t: pa_device_type_t,

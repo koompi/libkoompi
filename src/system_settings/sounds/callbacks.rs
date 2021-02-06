@@ -22,14 +22,14 @@ use libpulse_sys::context::{
 // }
 
 pub extern "C" fn state_cb(context: *mut pa_context, raw: *mut c_void) {
-    let mut pulse = Pulseaudio::new();
+    let pulse: *mut Pulseaudio = raw as *mut Pulseaudio;
     match unsafe { pa_context_get_state(context) } {
-        PA_CONTEXT_READY => {
-            pulse.state = State::CONNECTED;
-        }
-        PA_CONTEXT_FAILED => {
-            pulse.state = State::ERROR;
-        }
+        PA_CONTEXT_READY => unsafe {
+            (*pulse).state = State::CONNECTED;
+        },
+        PA_CONTEXT_FAILED => unsafe {
+            (*pulse).state = State::ERROR;
+        },
         PA_CONTEXT_UNCONNECTED
         | PA_CONTEXT_AUTHORIZING
         | PA_CONTEXT_SETTING_NAME
@@ -56,7 +56,7 @@ pub extern "C" fn sink_list_cb(
 }
 
 pub extern "C" fn source_list_cb(
-    context: *mut pa_context,
+    _context: *mut pa_context,
     i: *const pa_source_info,
     eol: i32,
     raw: *mut c_void,
@@ -73,15 +73,14 @@ pub extern "C" fn source_list_cb(
     }
 }
 pub extern "C" fn server_info_cb(
-    conext: *mut pa_context,
+    _conext: *mut pa_context,
     i: *const pa_server_info,
     raw: *mut c_void,
 ) {
     let info: *mut ServerInfo = raw as *mut ServerInfo;
-    let mut info1 = ServerInfo::new();
     unsafe {
-        info1.default_sink_name = (*i).default_sink_name;
-        info1.default_source_name = (*i).default_source_name;
+        (*info).default_sink_name = (*i).default_sink_name;
+        (*info).default_source_name = (*i).default_source_name;
     }
 }
 

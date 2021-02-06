@@ -28,7 +28,7 @@ use libpulse_sys::standard::{pa_mainloop_get_api, pa_mainloop_new};
 use libpulse_sys::volume::pa_volume_t;
 use libpulse_sys::volume::{pa_cvolume, pa_cvolume_set, PA_VOLUME_MAX};
 use std::ffi::c_void;
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 use std::ptr::{null, null_mut};
 #[repr(C)]
 pub struct ServerInfo {
@@ -81,7 +81,7 @@ impl Pulseaudio {
             state: state_t::CONNECTED,
         }
     }
-    pub fn pulseaudio(&mut self, client_name: *const i8) -> Result<(), std::io::Error> {
+    pub fn pulseaudio(&mut self, client_name: *const c_char) -> Result<(), std::io::Error> {
         unsafe {
             self.mainloop = pa_mainloop_new();
             self.mainloop_api = pa_mainloop_get_api(self.mainloop);
@@ -156,14 +156,14 @@ impl Pulseaudio {
             );
             pa_operation_unref(op);
         }
-        // if sinks.is_empty() {
-        //     return Err(std::io::Error::new(
-        //         std::io::ErrorKind::InvalidData,
-        //         "The sink doesn't exits\n",
-        //     ));
-        // } else {
-        Ok(*sinks.first().unwrap())
-        // }
+        if sinks.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "The sink doesn't exits\n",
+            ));
+        } else {
+            Ok(*sinks.first().unwrap())
+        }
     }
     pub fn get_sink_name(&mut self, name: *const i8) -> Result<Device, std::io::Error> {
         let mut sinks: Vec<Device> = Vec::new();
