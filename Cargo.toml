@@ -17,9 +17,7 @@ regex = "1.4"
 dirs = "3.0"
 ascii = "1.0.0"
 log = "0.4.13"
-<<<<<<< HEAD
 libpulse-sys = "1.18.0"
-=======
 bitflags = "1.2.1"
 futures = "0.1"
 futures-cpupool = "0.1"
@@ -29,4 +27,3 @@ itertools = "0.10"
 [dependencies.error-chain]
 version = "0.12.4"
 default-features = false
->>>>>>> 08f38adb449104704fadbcaccac4d96cebba8c21
