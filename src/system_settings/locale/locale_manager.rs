@@ -5,9 +5,9 @@ use crate::helpers::{get_val_from_keyval, exec_cmd, read_content, write_content,
 use super::locale_category::*;
 
 pub const LS_MEASURE_UNITS: [(&str, &str); 3] = [("km_KH.UTF-8", "Metric"), ("en_US.UTF-8", "Imperial US"), ("en_GB.UTF-8", "Imperial UK")];
-const LOCALE: &'static str = "locale";
-const LOCALE_DEF: &'static str = "localedef";
-const LANGUAGE: &'static str = "LANGUAGE";
+const LOCALE: &str = "locale";
+const LOCALE_DEF: &str = "localedef";
+const LANGUAGE: &str = "LANGUAGE";
 
 /// Structure of System-wide Localization Manager
 #[derive(Debug, Clone, Default)]
@@ -180,7 +180,7 @@ impl LocaleManager {
 impl LocaleManager {
    // write locale string to HOME config
    fn write_local(&self, data: &str) -> Result<(), Error> {
-      let path = dirs::config_dir().unwrap().join("locale.conf");
+      let path = dirs_next::config_dir().unwrap().join("locale.conf");
       Ok(write_content_overwrite(path, data)?)
    }
 
@@ -200,7 +200,7 @@ impl LocaleManager {
    /// write content from /etc to HOME if not exists
    fn clone_from_etc() -> Result<(), Error> {
       match read_content("/etc/locale.conf") {
-         Ok(content) => match write_content(dirs::config_dir().unwrap().join("locale.conf"), &content) {
+         Ok(content) => match write_content(dirs_next::config_dir().unwrap().join("locale.conf"), &content) {
             Ok(_) => Ok(()),
             Err(err) => Err(err), 
          },

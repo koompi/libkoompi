@@ -3,17 +3,17 @@ use super::power::Action;
 use dbus::{Error, blocking::Connection};
 use std::time::Duration;
 
-const UPOWER_SERVICE: &'static str = "org.freedesktop.UPower";
-const UPOWER_PATH: &'static str = "/org/freedesktop/UPower";
-const UPOWER_INTERFACE: &'static str = UPOWER_SERVICE;
+const UPOWER_SERVICE: &str = "org.freedesktop.UPower";
+const UPOWER_PATH: &str = "/org/freedesktop/UPower";
+const UPOWER_INTERFACE: &str = UPOWER_SERVICE;
 
-const INIT_SYS_SERVICE: &'static str = "org.freedesktop.login1";
-const INIT_SYS_PATH: &'static str = "/org/freedesktop/login1";
-const INIT_SYS_INTERFACE: &'static str = "org.freedesktop.login1.Manager";
+const INIT_SYS_SERVICE: &str = "org.freedesktop.login1";
+const INIT_SYS_PATH: &str = "/org/freedesktop/login1";
+const INIT_SYS_INTERFACE: &str = "org.freedesktop.login1.Manager";
 
-const LDE_SERVICE: &'static str = "org.kde.ksmserver";
-const LDE_PATH: &'static str = "/KSMServer";
-const LDE_INTERFACE: &'static str = "org.kde.KSMServerInterface";
+const LDE_SERVICE: &str = "org.kde.ksmserver";
+const LDE_PATH: &str = "/KSMServer";
+const LDE_INTERFACE: &str = "org.kde.KSMServerInterface";
 
 pub trait PowerProvider {
     // fn new() -> Self;
