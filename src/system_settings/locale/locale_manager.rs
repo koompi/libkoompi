@@ -19,6 +19,7 @@ pub struct LocaleManager {
    lc_measure: (String,LCMeasure),
    list_locales: Vec<String>,
    list_langs: HashMap<String, String>,
+   tmp_locale: LocaleConf,
 }
 
 // Public API
@@ -159,6 +160,7 @@ impl LocaleManager {
 
    /// write_conf by specified a localeConf struct like locale.conf file structure
    pub fn write_conf(&mut self) -> Result<(), Error> {
+      self.tmp_to_val();
       let data = self.to_locale_string();
       self.write_local(&data)
       // match target {
@@ -177,22 +179,22 @@ impl LocaleManager {
       std::env::set_var(format!("{}", key), locale);
       use LC_Keywords::*;
       match key {
-         LANG => self.lang = locale.to_owned(),
-         LANGUAGE => self.language = locale.to_owned(),
+         LANG => self.tmp_locale.lang = locale.to_owned(),
+         LANGUAGE => self.tmp_locale.language = locale.to_owned(),
          LC_NUMERIC => {
-            self.lc_numeric.0 = locale.to_owned();
+            self.tmp_locale.lc_numeric = locale.to_owned();
             self.lc_numeric.1 = LCNumeric::new().unwrap_or_default();
          },
          LC_TIME => {
-            self.lc_time.0 = locale.to_owned();
+            self.tmp_locale.lc_time = locale.to_owned();
             self.lc_time.1 = LCTime::new().unwrap_or_default();
          },
          LC_MONETARY => {
-            self.lc_monetary.0 = locale.to_owned();
+            self.tmp_locale.lc_monetary = locale.to_owned();
             self.lc_monetary.1 = LCMonetary::new().unwrap_or_default();
          },
          LC_MEASUREMENT => {
-            self.lc_measure.0 = locale.to_owned();
+            self.tmp_locale.lc_measure = locale.to_owned();
             self.lc_measure.1 = LCMeasure::new().unwrap_or_default();
          }
       }
@@ -250,6 +252,15 @@ impl LocaleManager {
          }
       });
       self.list_langs = ls_langs;
+   }
+
+   fn tmp_to_val(&mut self) {
+      self.lang = self.tmp_locale.lang.to_owned();
+      self.language = self.tmp_locale.language.to_owned();
+      self.lc_numeric.0 = self.tmp_locale.lc_numeric.to_owned();
+      self.lc_time.0 = self.tmp_locale.lc_time.to_owned();
+      self.lc_monetary.0 = self.tmp_locale.lc_monetary.to_owned();
+      self.lc_measure.0 = self.tmp_locale.lc_measure.to_owned();
    }
 }
 
@@ -311,14 +322,15 @@ mod test {
 //    Global,
 // }
 
-//  Structure of LocaleConf (file locale.conf format)
-// pub struct LocaleConf {
-//    pub lang: String,
-//    pub language: String,
-//    pub lc_numeric: String,
-//    pub lc_time: String,
-//    pub lc_monetary: String,
-//    pub lc_measurement: String,
-//    pub first_weekday: u8,
-//    pub is_24_hour: bool,
-// }
+/// Structure of LocaleConf (file locale.conf format)
+#[derive(Debug, Clone, Default)]
+pub struct LocaleConf {
+   pub lang: String,
+   pub language: String,
+   pub lc_numeric: String,
+   pub lc_time: String,
+   pub lc_monetary: String,
+   pub lc_measure: String,
+   // pub first_weekday: u8,
+   // pub is_24_hour: bool,
+}
