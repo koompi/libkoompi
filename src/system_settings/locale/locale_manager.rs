@@ -5,9 +5,8 @@ use crate::helpers::{get_val_from_keyval, exec_cmd, read_content, write_content,
 use super::locale_category::*;
 
 pub const LS_MEASURE_UNITS: [(&str, &str); 3] = [("km_KH.UTF-8", "Metric"), ("en_US.UTF-8", "Imperial US"), ("en_GB.UTF-8", "Imperial UK")];
-const LOCALE: &str = "locale";
-const LOCALE_DEF: &str = "localedef";
-const LANGUAGE: &str = "LANGUAGE";
+pub(super) const LOCALE: &str = "locale";
+pub(super) const LOCALE_DEF: &str = "localedef";
 
 /// Structure of System-wide Localization Manager
 #[derive(Debug, Clone, Default)]
@@ -47,23 +46,23 @@ impl LocaleManager {
                   *lang = get_val_from_keyval(line, None);
                } else if line.starts_with(format!("{}", LC_Keywords::LC_NUMERIC).as_str()) {
                   lc_numeric.0 = get_val_from_keyval(line, None);
-                  Self::set_lc_numeric(&mut lc_numeric.1);
+                  lc_numeric.1 = LCNumeric::new().unwrap_or_default();
                } else if line.starts_with(format!("{}", LC_Keywords::LC_TIME).as_str()) {
                   lc_time.0 = get_val_from_keyval(line, None);
-                  Self::set_lc_time(&mut lc_time.1);
+                  lc_time.1 = LCTime::new().unwrap_or_default();
                } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
                   lc_monetary.0 = get_val_from_keyval(line, None);
-                  Self::set_lc_monetary(&mut lc_monetary.1);
+                  lc_monetary.1 = LCMonetary::new().unwrap_or_default();
                } else if line.starts_with(format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()) {
                   lc_measure.0 = get_val_from_keyval(line, None);
-                  Self::set_lc_measure(&mut lc_measure.1);
+                  lc_measure.1 = LCMeasure::new().unwrap_or_default();
                } 
             });
          },
          Err(err) => return Err(err), // error handling here
       }
 
-      *language = std::env::var(LANGUAGE).unwrap_or(String::new());
+      *language = std::env::var(format!("{}", LC_Keywords::LANGUAGE)).unwrap_or(String::new());
 
       match exec_cmd(LOCALE_DEF, vec!["--list-archive"]) {
          Ok(stdout) => {
@@ -158,9 +157,9 @@ impl LocaleManager {
       &self.lc_measure.1
    }
 
-   /// Set locale by specified a localeConf struct like locale.conf file structure
-   pub fn set_locale(&mut self, lc_conf: LocaleConf) -> Result<(), Error> {
-      let data = Self::to_locale_string(lc_conf);
+   /// write_conf by specified a localeConf struct like locale.conf file structure
+   pub fn write_conf(&mut self) -> Result<(), Error> {
+      let data = self.to_locale_string();
       self.write_local(&data)
       // match target {
       //    ExportTarget::Local => self.write_local(&data),
@@ -174,6 +173,31 @@ impl LocaleManager {
       // }
    }
 
+   pub fn set_locale(&mut self, key: LC_Keywords, locale: &str) -> Result<(), Error> {
+      std::env::set_var(format!("{}", key), locale);
+      use LC_Keywords::*;
+      match key {
+         LANG => self.lang = locale.to_owned(),
+         LANGUAGE => self.language = locale.to_owned(),
+         LC_NUMERIC => {
+            self.lc_numeric.0 = locale.to_owned();
+            self.lc_numeric.1 = LCNumeric::new().unwrap_or_default();
+         },
+         LC_TIME => {
+            self.lc_time.0 = locale.to_owned();
+            self.lc_time.1 = LCTime::new().unwrap_or_default();
+         },
+         LC_MONETARY => {
+            self.lc_monetary.0 = locale.to_owned();
+            self.lc_monetary.1 = LCMonetary::new().unwrap_or_default();
+         },
+         LC_MEASUREMENT => {
+            self.lc_measure.0 = locale.to_owned();
+            self.lc_measure.1 = LCMeasure::new().unwrap_or_default();
+         }
+      }
+      Ok(())
+   }
 }
 
 // Private Methods
@@ -185,15 +209,15 @@ impl LocaleManager {
    }
 
    // format locale conf to string
-   fn to_locale_string(locale_conf: LocaleConf) -> String {
+   fn to_locale_string(&self) -> String {
       format!(
          "LANG={lang}\nLANGUAGE={language}\nLC_NUMERIC={lc_numeric}\nLC_TIME={lc_time}\nLC_MONETARY={lc_monetary}\nLC_MEASUREMENT={lc_measurement}\n",
-         lang = locale_conf.lang,
-         language = locale_conf.language,
-         lc_numeric = locale_conf.lc_numeric,
-         lc_time = locale_conf.lc_time,
-         lc_monetary = locale_conf.lc_monetary,
-         lc_measurement = locale_conf.lc_measurement,
+         lang = self.lang,
+         language = self.language,
+         lc_numeric = self.lc_numeric.0,
+         lc_time = self.lc_time.0,
+         lc_monetary = self.lc_monetary.0,
+         lc_measurement = self.lc_measure.0,
       )
    }
 
@@ -227,80 +251,13 @@ impl LocaleManager {
       });
       self.list_langs = ls_langs;
    }
-
-   /// Fetch current locale LC_NUMERIC
-   fn set_lc_numeric(lc_numeric: &mut LCNumeric) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()]) {
-         Ok(stdout) => {
-            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
-            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
-            *lc_numeric = toml::from_str(&stdout_formatted).unwrap_or_default();
-         },
-         Err(err) => eprintln!("{}", err), 
-      }
-   }
-
-   /// Fetch current locale LC_TIME
-   fn set_lc_time(lc_time: &mut LCTime) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
-         Ok(stdout) => {
-            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !line.starts_with("time_era_entries=")).map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
-               if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
-                  formatted.push(format!("{}{}", line, "\"\""))
-               } else {
-                  formatted.push(line)
-               }
-               formatted
-            }).join("\n");
-            *lc_time = toml::from_str(&stdout_formatted).unwrap_or_default(); 
-         },
-         Err(err) => eprintln!("{}", err), 
-      }
-   }
-
-   /// Fetch current locale LC_MONETARY
-   fn set_lc_monetary(lc_monetary: &mut LCMonetary) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()]) {
-         Ok(stdout) => {
-            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
-            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
-            *lc_monetary = toml::from_str(&stdout_formatted).unwrap_or_default(); 
-         },
-         Err(err) => eprintln!("{}", err), 
-      }
-   }
-
-   /// Fetch current locale LC_MEASUREMENT
-   fn set_lc_measure(lc_measure: &mut LCMeasure) {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()]) {
-         Ok(stdout) => {
-            *lc_measure = toml::from_str(&stdout).unwrap_or_default(); 
-         },
-         Err(err) => eprintln!("{}", err), 
-      }
-   }
-}
-
-/// Available export target variants
-// enum ExportTarget {
-//    Local,
-//    Global,
-// }
-
-/// Structure of LocaleConf (file locale.conf format)
-pub struct LocaleConf {
-   pub lang: String,
-   pub language: String,
-   pub lc_numeric: String,
-   pub lc_time: String,
-   pub lc_monetary: String,
-   pub lc_measurement: String,
 }
 
 /// List of LC_* variants
 #[allow(non_camel_case_types)]
-enum LC_Keywords {
+pub enum LC_Keywords {
    LANG,
+   LANGUAGE,
    LC_NUMERIC,
    LC_TIME,
    LC_MONETARY,
@@ -312,6 +269,7 @@ impl Display for LC_Keywords {
       use LC_Keywords::*;
       write!(f, "{}", match self {
          LANG => "LANG",
+         LANGUAGE => "LANGUAGE",
          LC_NUMERIC => "LC_NUMERIC",
          LC_TIME => "LC_TIME",
          LC_MONETARY => "LC_MONETARY",
@@ -322,29 +280,45 @@ impl Display for LC_Keywords {
 
 #[cfg(test)]
 mod test {
-   use super::{LocaleManager, LocaleConf};
+   use super::{LocaleManager, LC_Keywords};
    #[test]
    fn test_locale_manager() {
       match LocaleManager::new() {
          Ok(mut locale_mn) => {
-            let lc_conf = LocaleConf {
-               lang: String::from("en_US.UTF-8"),
-               language: String::from("km_KH:en_US"),
-               lc_numeric: String::from("km_KH.UTF-8"),
-               lc_time: String::from("km_KH.UTF-8"),
-               lc_monetary: String::from("km_KH.UTF-8"),
-               lc_measurement: String::from("km_KH.UTF-8"),
-            };
-
-            match locale_mn.set_locale(lc_conf) {
-               Ok(()) => println!("Success set locale"),
+            match locale_mn.set_locale(LC_Keywords::LC_TIME, "km_KH.UTF-8") {
+               Ok(()) => {
+                  println!("{:#?}", locale_mn.time_details());
+                  match locale_mn.write_conf() {
+                     Ok(()) => println!("Success set locale"),
+                     Err(err) => eprintln!("Error: {}", err),
+                  }
+               },
                Err(err) => eprintln!("Error: {}", err),
             }
+            
             locale_mn.list_prefered_langs().iter().for_each(|(key, lang_reg)| println!("{} => {}", key, lang_reg));
-            println!("{:#?}", locale_mn);
+            // println!("{:#?}", locale_mn);
             assert_eq!(locale_mn.numeric().1, "ខ្មែរ_កម្ពុជា");
          },
          Err(err) => eprintln!("{}", err)
       }
    }
 }
+
+// Available export target variants
+// enum ExportTarget {
+//    Local,
+//    Global,
+// }
+
+//  Structure of LocaleConf (file locale.conf format)
+// pub struct LocaleConf {
+//    pub lang: String,
+//    pub language: String,
+//    pub lc_numeric: String,
+//    pub lc_time: String,
+//    pub lc_monetary: String,
+//    pub lc_measurement: String,
+//    pub first_weekday: u8,
+//    pub is_24_hour: bool,
+// }

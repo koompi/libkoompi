@@ -1,5 +1,7 @@
 use serde::{Deserialize};
-use crate::helpers::get_list_by_sep;
+use std::io::Error;
+use crate::helpers::{get_list_by_sep, exec_cmd, get_val_from_keyval};
+use super::locale_manager::{LOCALE, LC_Keywords};
 
 /// Structure of LC_NUMERIC
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -7,6 +9,20 @@ pub struct LCNumeric {
    pub decimal_point: String,
    pub thousands_sep: String,
    pub grouping: u8,
+}
+
+impl LCNumeric {
+   /// Fetch current locale LC_NUMERIC
+   pub fn new() -> Result<Self, Error> {
+      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()]) {
+         Ok(stdout) => {
+            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
+            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+            Ok(toml::from_str(&stdout_formatted).unwrap_or_default())
+         },
+         Err(err) => Err(err), 
+      }
+   }
 }
 
 /// Structure of LC_TIME
@@ -30,6 +46,23 @@ pub struct LCTime {
 }
 
 impl LCTime {
+   /// Fetch current locale LC_TIME
+   pub fn new() -> Result<Self, Error> {
+      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
+         Ok(stdout) => {
+            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !line.starts_with("time_era_entries=")).map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
+               if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
+                  formatted.push(format!("{}{}", line, "\"\""))
+               } else {
+                  formatted.push(line)
+               }
+               formatted
+            }).join("\n");
+            Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
+         },
+         Err(err) => Err(err), 
+      }
+   }
    /// Return a list of abbreviated days.
    pub fn list_abbr_days(&self) -> Vec<String> {
       get_list_by_sep(self.abday.as_str(), ";")
@@ -79,28 +112,34 @@ pub struct LCMonetary {
    pub frac_digits: u8,
 }
 
-/// Structure of LC_MESSAGES
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct LCMessages {
-   pub yesexpr: String,
-   pub noexpr: String,
-   pub yesstr: String,
-   pub nostr: String,
-}
-
-/// Structure of LC_ADDRESS
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct LCAddress {
-   pub country_name: String,
-   pub country_post: String,
-   pub country_ab2: String,
-   pub country_ab3: String,
-   pub lang_name: String,
-   pub lang_ab: String,
+impl LCMonetary {
+   /// Fetch current locale LC_MONETARY
+   pub fn new() -> Result<Self, Error> {
+      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()]) {
+         Ok(stdout) => {
+            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
+            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+            Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
+         },
+         Err(err) => Err(err), 
+      }
+   }
 }
 
 /// Structure of LC_MEASUREMENT
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct LCMeasure {
    pub measurement: usize,
+}
+
+impl LCMeasure {
+   /// Fetch current locale LC_MEASUREMENT
+   pub fn new() -> Result<Self, Error> {
+      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()]) {
+         Ok(stdout) => {
+            Ok(toml::from_str(&stdout).unwrap_or_default())
+         },
+         Err(err) => Err(err), 
+      }
+   }
 }
