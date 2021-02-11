@@ -1,5 +1,5 @@
-use serde::{Deserialize};
 use crate::helpers::get_list_by_sep;
+use serde::Deserialize;
 
 /// Structure of LC_NUMERIC
 #[derive(Debug, Clone, Default, Deserialize)]
