@@ -2,7 +2,8 @@ use libpulse_binding::{
     channelmap,
     context::introspect,
     def,
-    def::PortAvailable,
+    def::{DevicePortType, PortAvailable},
+    direction::FlagSet,
     format,
     proplist::Proplist,
     sample,
@@ -347,6 +348,61 @@ impl<'a> From<&'a introspect::ServerInfo<'a>> for ServerInfo {
         }
     }
 }
+#[derive(Clone, Debug)]
+pub struct CardSndProfile2 {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub n_sink: u32,
+    pub n_sources: u32,
+    pub priority: u32,
+    pub available: bool,
+}
+impl<'a> From<&'a introspect::CardProfileInfo2<'a>> for CardSndProfile2 {
+    fn from(card_pf: &'a introspect::CardProfileInfo2<'a>) -> Self {
+        Self {
+            name: card_pf.name.as_ref().map(|s| s.to_string()),
+            description: card_pf.description.as_ref().map(|s| s.to_string()),
+            n_sink: card_pf.n_sinks,
+            n_sources: card_pf.n_sources,
+            priority: card_pf.priority,
+            available: card_pf.available,
+        }
+    }
+}
+#[derive(Clone, Debug)]
+pub struct CardPortSoundInfo {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub priority: u32,
+    pub available: PortAvailable,
+    pub direction: FlagSet,
+    pub proplist: Proplist,
+    pub latency_offset: i64,
+    pub profiles: Vec<CardSndProfile2>,
+    pub availability_group: Option<String>,
+    pub dev_type: DevicePortType,
+}
+
+impl<'a> From<&'a introspect::CardPortInfo<'a>> for CardPortSoundInfo {
+    fn from(card_portinfo: &'a introspect::CardPortInfo<'a>) -> Self {
+        let mut vec_profiles: Vec<CardSndProfile2> = Vec::new();
+        for i in card_portinfo.profiles.iter() {
+            vec_profiles.push(CardSndProfile2::from(i));
+        }
+        Self {
+            name: card_portinfo.name.as_ref().map(|s| s.to_string()),
+            description: card_portinfo.description.as_ref().map(|s| s.to_string()),
+            priority: card_portinfo.priority,
+            available: card_portinfo.available,
+            direction: card_portinfo.direction,
+            proplist: card_portinfo.proplist.clone(),
+            latency_offset: card_portinfo.latency_offset,
+            profiles: vec_profiles,
+            availability_group: card_portinfo.availability_group.as_ref().map(|s| s.to_string()),
+            dev_type: card_portinfo.r#type,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct SoundCardInfo {
@@ -355,16 +411,28 @@ pub struct SoundCardInfo {
     pub owner_module: Option<u32>,
     pub driver: Option<String>,
     pub proplist: Proplist,
+    pub ports: Vec<CardPortSoundInfo>,
+    pub profiles: Vec<CardSndProfile2>,
+    pub active_profile: CardSndProfile2,
 }
 
 impl<'a> From<&'a introspect::CardInfo<'a>> for SoundCardInfo {
     fn from(info: &'a introspect::CardInfo<'a>) -> Self {
+        let mut vec_ports: Vec<CardPortSoundInfo> = Vec::new();
+        let mut vec_profiles: Vec<CardSndProfile2> = Vec::new();
+        for (i, j) in info.ports.iter().zip(info.profiles.iter()) {
+            vec_ports.push(CardPortSoundInfo::from(i));
+            vec_profiles.push(CardSndProfile2::from(j))
+        }
         SoundCardInfo {
             index: info.index,
             name: info.name.as_ref().map(|s| s.to_string()),
             owner_module: info.owner_module,
             driver: info.driver.as_ref().map(|s| s.to_string()),
             proplist: info.proplist.clone(),
+            ports: vec_ports,
+            profiles: vec_profiles,
+            active_profile: CardSndProfile2::from(info.active_profile.as_ref().unwrap().as_ref()),
         }
     }
 }

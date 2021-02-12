@@ -70,7 +70,7 @@ pub trait SoundCard<T> {
     fn get_sound_card_by_index(&mut self, index: u32) -> Result<T, ControllerError>;
     fn get_sound_card_by_name(&mut self, name: &str) -> Result<T, ControllerError>;
     fn get_card_info_list(&mut self) -> Result<Vec<T>, ControllerError>;
-    fn set_card_profile_by_index(&mut self, index: u32) -> Result<bool, ControllerError>;
+    fn set_card_profile_by_index(&mut self, index: u32, profile: &str) -> Result<bool, ControllerError>;
     fn set_card_profile_by_name(&mut self, name: &str) -> Result<bool, ControllerError>;
 }
 
@@ -100,7 +100,7 @@ impl SinkController {
     }
 }
 
-impl SoundCard<SoundCardInfo> for SinkController {
+impl<'a> SoundCard<SoundCardInfo> for SinkController {
     fn get_sound_card_by_index(&mut self, index: u32) -> Result<SoundCardInfo, ControllerError> {
         let soundinfo = Rc::new(RefCell::new(Some(None)));
         let soundinfo_ref = soundinfo.clone();
@@ -128,12 +128,35 @@ impl SoundCard<SoundCardInfo> for SinkController {
         // Err(ControllerError::new(GetInfoError, "Sound Card Error"))
     }
     fn get_card_info_list(&mut self) -> Result<Vec<SoundCardInfo>, ControllerError> {
-        Err(ControllerError::new(GetInfoError, "Sound Card Error"))
+        let soundlist = Rc::new(RefCell::new(Some(Vec::new())));
+        let soundlist_ref = soundlist.clone();
+
+        let op = self.handler.introspect.get_card_info_list(move |card_list: ListResult<&introspect::CardInfo>| {
+            if let ListResult::Item(list_item) = card_list {
+                soundlist_ref.borrow_mut().as_mut().unwrap().push(list_item.into());
+            }
+        });
+        self.handler.wait_for_operation(op)?;
+        let mut result = soundlist.borrow_mut();
+        result.take().ok_or(ControllerError::new(GetInfoError, "Error getting device list"))
+        // Err(ControllerError::new(GetInfoError, "Sound Card Error"))
     }
-    fn set_card_profile_by_index(&mut self, index: u32) -> Result<bool, ControllerError> {
-        Err(ControllerError::new(GetInfoError, "Sound Card Error"))
+    fn set_card_profile_by_index(&mut self, index: u32, profile: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_card_profile_by_index(
+            index,
+            profile,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
     }
     fn set_card_profile_by_name(&mut self, name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
         Err(ControllerError::new(GetInfoError, "Sound Card Error"))
     }
 }

@@ -20,4 +20,4 @@ ascii = "1.0.0"
 log = "0.4.13"
 itertools = "0.10"
 
-libpulse-binding = {version = "2.23.0", features= ["pa_v5"]}
+libpulse-binding = {version = "2.23.0", features= ["pa_v5", "pa_v14"]}
