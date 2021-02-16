@@ -1,5 +1,4 @@
-use libkoompi::system_settings::{AppControl, DeviceControl, SinkController, SoundCard};
-use std::io::Read;
+use libkoompi::system_settings::{DeviceControl, SinkController, SoundCard};
 fn main() {
     let mut handler = SinkController::create();
     let devices = handler.list_devices().expect("Device not found");

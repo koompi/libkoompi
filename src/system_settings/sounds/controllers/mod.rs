@@ -71,7 +71,14 @@ pub trait SoundCard<T> {
     fn get_sound_card_by_name(&mut self, name: &str) -> Result<T, ControllerError>;
     fn get_card_info_list(&mut self) -> Result<Vec<T>, ControllerError>;
     fn set_card_profile_by_index(&mut self, index: u32, profile: &str) -> Result<bool, ControllerError>;
-    fn set_card_profile_by_name(&mut self, name: &str) -> Result<bool, ControllerError>;
+    fn set_card_profile_by_name(&mut self, name: &str, profiel: &str) -> Result<bool, ControllerError>;
+}
+
+pub trait SoundPort {
+    fn set_sink_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError>;
+    fn set_sink_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError>;
+    fn set_source_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError>;
+    fn set_source_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError>;
 }
 
 fn volume_from_percent(volume: f64) -> f64 {
@@ -155,9 +162,78 @@ impl<'a> SoundCard<SoundCardInfo> for SinkController {
         let result = success.borrow_mut().clone();
         Ok(result)
     }
-    fn set_card_profile_by_name(&mut self, name: &str) -> Result<bool, ControllerError> {
+    fn set_card_profile_by_name(&mut self, name: &str, profile: &str) -> Result<bool, ControllerError> {
         let success = Rc::new(RefCell::new(false));
-        Err(ControllerError::new(GetInfoError, "Sound Card Error"))
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_card_profile_by_name(
+            name,
+            profile,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+}
+
+impl SoundPort for SinkController {
+    fn set_sink_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_sink_port_by_name(
+            name,
+            port_name,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+    fn set_sink_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_sink_port_by_index(
+            index,
+            port_name,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+    fn set_source_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_source_port_by_name(
+            name,
+            port_name,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+    fn set_source_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_sink_port_by_index(
+            index,
+            port_name,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
     }
 }
 impl DeviceControl<DeviceInfo> for SinkController {
