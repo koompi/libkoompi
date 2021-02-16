@@ -52,7 +52,7 @@ pub enum WifiError {
     /// IO Error occurred.
     IoError(io::Error),
 }
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Wifi;
 impl WifiInterface for Wifi {
     fn is_wifi_enabled() -> Result<bool, WifiError> {
