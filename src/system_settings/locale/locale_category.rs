@@ -1,7 +1,7 @@
-use serde::{Deserialize};
+use super::locale_manager::{LC_Keywords, LOCALE};
+use crate::helpers::{exec_cmd, get_list_by_sep, get_val_from_keyval};
+use serde::Deserialize;
 use std::io::Error;
-use crate::helpers::{get_list_by_sep, exec_cmd, get_val_from_keyval};
-use super::locale_manager::{LOCALE, LC_Keywords};
 
 /// Structure of LC_NUMERIC
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -19,8 +19,8 @@ impl LCNumeric {
             let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
             let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
             Ok(toml::from_str(&stdout_formatted).unwrap_or_default())
-         },
-         Err(err) => Err(err), 
+         }
+         Err(err) => Err(err),
       }
    }
 }
@@ -50,17 +50,23 @@ impl LCTime {
    pub fn new() -> Result<Self, Error> {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
          Ok(stdout) => {
-            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !line.starts_with("time_era_entries=")).map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
-               if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
-                  formatted.push(format!("{}{}", line, "\"\""))
-               } else {
-                  formatted.push(line)
-               }
-               formatted
-            }).join("\n");
-            Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
-         },
-         Err(err) => Err(err), 
+            let stdout_formatted = stdout
+               .replace("-", "_")
+               .lines()
+               .filter(|line| !line.starts_with("time_era_entries="))
+               .map(ToString::to_string)
+               .fold(Vec::new(), |mut formatted, line| {
+                  if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
+                     formatted.push(format!("{}{}", line, "\"\""))
+                  } else {
+                     formatted.push(line)
+                  }
+                  formatted
+               })
+               .join("\n");
+            Ok(toml::from_str(&stdout_formatted).unwrap_or_default())
+         }
+         Err(err) => Err(err),
       }
    }
    /// Return a list of abbreviated days.
@@ -119,9 +125,9 @@ impl LCMonetary {
          Ok(stdout) => {
             let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
             let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
-            Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
-         },
-         Err(err) => Err(err), 
+            Ok(toml::from_str(&stdout_formatted).unwrap_or_default())
+         }
+         Err(err) => Err(err),
       }
    }
 }
@@ -136,10 +142,8 @@ impl LCMeasure {
    /// Fetch current locale LC_MEASUREMENT
    pub fn new() -> Result<Self, Error> {
       match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()]) {
-         Ok(stdout) => {
-            Ok(toml::from_str(&stdout).unwrap_or_default())
-         },
-         Err(err) => Err(err), 
+         Ok(stdout) => Ok(toml::from_str(&stdout).unwrap_or_default()),
+         Err(err) => Err(err),
       }
    }
 }

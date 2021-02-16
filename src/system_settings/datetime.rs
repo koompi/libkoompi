@@ -1,8 +1,8 @@
-use std::io::Error;
-use crate::helpers::{get_bool_yesno, exec_cmd};
-use getset::{Getters};
-use std::collections::HashMap;
+use crate::helpers::{exec_cmd, get_bool_yesno};
+use getset::Getters;
 use itertools::Itertools;
+use std::collections::HashMap;
+use std::io::Error;
 
 const TIMEDATE_CTL: &str = "timedatectl";
 
@@ -46,8 +46,22 @@ impl DateTimeManager {
             let mut ls_timezones: Vec<String> = stdout.lines().map(|line| line.trim().to_string()).collect();
             ls_timezones.push(String::from("Asia/Phnom_Penh"));
             ls_timezones.sort();
-            datetime_mn.list_timezones = ls_timezones.into_iter().group_by(|tz| tz.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>()[0].clone()).into_iter().map(|(con, cities)| (con.to_string(), cities.collect::<Vec<String>>().into_iter().map(|city| city.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>().last().unwrap().clone()).collect())).collect();
-         },
+            datetime_mn.list_timezones = ls_timezones
+               .into_iter()
+               .group_by(|tz| tz.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>()[0].clone())
+               .into_iter()
+               .map(|(con, cities)| {
+                  (
+                     con.to_string(),
+                     cities
+                        .collect::<Vec<String>>()
+                        .into_iter()
+                        .map(|city| city.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>().last().unwrap().clone())
+                        .collect(),
+                  )
+               })
+               .collect();
+         }
          Err(err) => eprintln!("{}", err), // error handling here
       }
       Ok(datetime_mn)
@@ -61,7 +75,7 @@ impl DateTimeManager {
                self.time_usec = datetime.to_owned();
                Self::load_info(self);
                res = true;
-            },
+            }
             Err(err) => eprintln!("{}", err), // error handling here
          }
       }
@@ -71,12 +85,12 @@ impl DateTimeManager {
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
       let mut res = false;
       if !self.ntp {
-         match exec_cmd("pkexec", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]){
+         match exec_cmd("pkexec", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]) {
             Ok(_) => {
                self.timezone = tz.to_owned();
                Self::load_info(self);
                res = true;
-            },
+            }
             Err(err) => eprintln!("{}", err), // error handling here
          }
       }
@@ -92,7 +106,7 @@ impl DateTimeManager {
             // self.ntp_sync = ntp;
             Self::load_info(self);
             res = true;
-         },
+         }
          Err(err) => eprintln!("{}", err), // error handling here
       }
       Ok(res)
@@ -101,11 +115,11 @@ impl DateTimeManager {
    pub fn set_local_rtc(&mut self, local_rtc: bool) -> Result<bool, Error> {
       let mut res = false;
       if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc {"true"} else {"0"}]) {
+         match exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc { "true" } else { "0" }]) {
             Ok(_) => {
                self.local_rtc = local_rtc;
                res = true;
-            },
+            }
             Err(err) => eprintln!("{}", err), // error handling here
          }
       }
@@ -137,7 +151,7 @@ impl DateTimeManager {
                   datetime_mn.time_usec = line.split_at(9).1.trim().to_owned();
                } else if line.starts_with("RTCTimeUSec=") {
                   datetime_mn.rtc_time_usec = line.split_at(12).1.trim().to_owned();
-               } 
+               }
             });
          }
          Err(err) => eprintln!("{}", err), // error handling here
@@ -163,11 +177,11 @@ mod tests {
                if res {
                   println!("{}", *dt_mn.timezone());
                }
-            } 
+            }
             println!("{:#?}", dt_mn.list_timezones());
             assert_eq!(*dt_mn.timezone(), "Phnom_Penh");
-         },
-         Err(err) => println!("{}", err)
+         }
+         Err(err) => println!("{}", err),
       }
    }
 }
