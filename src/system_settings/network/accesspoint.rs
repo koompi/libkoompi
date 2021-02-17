@@ -6,7 +6,7 @@ use std::time::Duration;
 const SERVICE_NAME: &str = "org.freedesktop.NetworkManager";
 const SERVICE_INTERFACE: &str = "org.freedesktop.NetworkManager";
 const ACESSPOINT_INTERFACE: &str = "org.freedesktop.NetworkManager.AccessPoint";
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct AccessPoint {
     pub ssid: String,
     pub strenght: u8,
@@ -60,5 +60,21 @@ pub fn get_accesspoints() -> Result<Vec<AccessPoint>, Error> {
             continue;
         }
     }
+    vec_accesspoint.sort_by(|a, b| a.ssid.cmp(&b.ssid));
+    vec_accesspoint.dedup_by(|a, b| a.ssid == b.ssid);
     Ok(vec_accesspoint)
+}
+
+#[test]
+fn test_access() {
+    match get_accesspoints() {
+        Ok(res) => {
+            println!("Len of accesspiont: {}", res.len());
+            for i in res {
+                println!("Result: {:?}", i.ssid)
+            }
+        }
+        Err(e) => println!("Error: {:?}", e),
+    }
+    assert_eq!(1, 2)
 }
