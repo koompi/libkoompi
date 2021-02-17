@@ -14,14 +14,10 @@ pub struct LCNumeric {
 impl LCNumeric {
    /// Fetch current locale LC_NUMERIC
    pub fn new() -> Result<Self, Error> {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()]) {
-         Ok(stdout) => {
-            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
-            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
-            Ok(toml::from_str(&stdout_formatted).unwrap_or_default())
-         },
-         Err(err) => Err(err), 
-      }
+      let stdout = exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_NUMERIC).as_str()])?;
+      let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
+      let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+      Ok(toml::from_str(&stdout_formatted).unwrap_or_default())
    }
 }
 
@@ -48,20 +44,16 @@ pub struct LCTime {
 impl LCTime {
    /// Fetch current locale LC_TIME
    pub fn new() -> Result<Self, Error> {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()]) {
-         Ok(stdout) => {
-            let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !line.starts_with("time_era_entries=")).map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
-               if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
-                  formatted.push(format!("{}{}", line, "\"\""))
-               } else {
-                  formatted.push(line)
-               }
-               formatted
-            }).join("\n");
-            Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
-         },
-         Err(err) => Err(err), 
-      }
+      let stdout = exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_TIME).as_str()])?;
+      let stdout_formatted = stdout.replace("-", "_").lines().filter(|line| !line.starts_with("time_era_entries=")).map(ToString::to_string).fold(Vec::new(), |mut formatted, line| {
+         if get_val_from_keyval(line.as_str(), None).is_empty() && !line.contains("\"") {
+            formatted.push(format!("{}{}", line, "\"\""))
+         } else {
+            formatted.push(line)
+         }
+         formatted
+      }).join("\n");
+      Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
    }
    /// Return a list of abbreviated days.
    pub fn list_abbr_days(&self) -> Vec<String> {
@@ -115,14 +107,10 @@ pub struct LCMonetary {
 impl LCMonetary {
    /// Fetch current locale LC_MONETARY
    pub fn new() -> Result<Self, Error> {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()]) {
-         Ok(stdout) => {
-            let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
-            let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
-            Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
-         },
-         Err(err) => Err(err), 
-      }
+      let stdout = exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MONETARY).as_str()])?;
+      let re = regex::Regex::new(r"[0-9]+;[0-9]+").unwrap();
+      let stdout_formatted = stdout.replace("-", "_").lines().map(|line| re.replace(line, "0")).map(|m| m.to_string()).collect::<Vec<String>>().join("\n");
+      Ok(toml::from_str(&stdout_formatted).unwrap_or_default()) 
    }
 }
 
@@ -135,11 +123,7 @@ pub struct LCMeasure {
 impl LCMeasure {
    /// Fetch current locale LC_MEASUREMENT
    pub fn new() -> Result<Self, Error> {
-      match exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()]) {
-         Ok(stdout) => {
-            Ok(toml::from_str(&stdout).unwrap_or_default())
-         },
-         Err(err) => Err(err), 
-      }
+      let stdout = exec_cmd(LOCALE, vec!["-k", format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()])?;
+      Ok(toml::from_str(&stdout).unwrap_or_default())
    }
 }

@@ -40,108 +40,83 @@ impl Default for DateTimeManager {
 impl DateTimeManager {
    pub fn new() -> Result<Self, Error> {
       let mut datetime_mn = Self::default();
-      Self::load_info(&mut datetime_mn);
-      match exec_cmd(TIMEDATE_CTL, vec!["list-timezones"]) {
-         Ok(stdout) => {
-            let mut ls_timezones: Vec<String> = stdout.lines().map(|line| line.trim().to_string()).collect();
-            ls_timezones.push(String::from("Asia/Phnom_Penh"));
-            ls_timezones.sort();
-            datetime_mn.list_timezones = ls_timezones.into_iter().group_by(|tz| tz.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>()[0].clone()).into_iter().map(|(con, cities)| (con.to_string(), cities.collect::<Vec<String>>().into_iter().map(|city| city.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>().last().unwrap().clone()).collect())).collect();
-         },
-         Err(err) => eprintln!("{}", err), // error handling here
-      }
+      datetime_mn.load_info()?;
+      let stdout = exec_cmd(TIMEDATE_CTL, vec!["list-timezones"])?;
+      let mut ls_timezones: Vec<String> = stdout.lines().map(|line| line.trim().to_string()).collect();
+      ls_timezones.push(String::from("Asia/Phnom_Penh"));
+      ls_timezones.sort();
+      datetime_mn.list_timezones = ls_timezones.into_iter().group_by(|tz| tz.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>()[0].clone()).into_iter().map(|(con, cities)| (con.to_string(), cities.collect::<Vec<String>>().into_iter().map(|city| city.split_terminator('/').collect::<Vec<&str>>().iter().map(ToString::to_string).collect::<Vec<String>>().last().unwrap().clone()).collect())).collect();
       Ok(datetime_mn)
    }
 
    pub fn set_datetime(&mut self, datetime: &str) -> Result<bool, Error> {
-      let mut res = false;
       if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-time", datetime]) {
-            Ok(_) => {
-               self.time_usec = datetime.to_owned();
-               Self::load_info(self);
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
+         exec_cmd(TIMEDATE_CTL, vec!["set-time", datetime])?;
+         self.time_usec = datetime.to_owned();
+         self.load_info()?;
+         Ok(true)
+      } else {
+         Ok(false)
       }
-      Ok(res)
    }
 
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
-      let mut res = false;
       if !self.ntp {
-         match exec_cmd("pkexec", vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"]){
-            Ok(_) => {
-               self.timezone = tz.to_owned();
-               Self::load_info(self);
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
+         exec_cmd("ln", vec!["-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"])?;
+         self.timezone = tz.to_owned();
+         self.load_info()?;
+         Ok(true)
+      } else {
+         Ok(false)
       }
-      Ok(res)
    }
 
    pub fn set_ntp(&mut self, ntp: bool) -> Result<bool, Error> {
-      let mut res = false;
-      match exec_cmd(TIMEDATE_CTL, vec!["set-ntp", format!("{}", ntp).as_str()]) {
-         Ok(_) => {
-            self.ntp = ntp;
-            // system clock synchronized
-            // self.ntp_sync = ntp;
-            Self::load_info(self);
-            res = true;
-         },
-         Err(err) => eprintln!("{}", err), // error handling here
-      }
-      Ok(res)
+      exec_cmd(TIMEDATE_CTL, vec!["set-ntp", format!("{}", ntp).as_str()])?;
+      self.ntp = ntp;
+      // system clock synchronized
+      // self.ntp_sync = ntp;
+      self.load_info()?;
+      Ok(true)
    }
 
    pub fn set_local_rtc(&mut self, local_rtc: bool) -> Result<bool, Error> {
-      let mut res = false;
       if !self.ntp {
-         match exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc {"true"} else {"0"}]) {
-            Ok(_) => {
-               self.local_rtc = local_rtc;
-               res = true;
-            },
-            Err(err) => eprintln!("{}", err), // error handling here
-         }
+         exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc {"true"} else {"0"}])?;
+         self.local_rtc = local_rtc;
+         Ok(true)
+      } else {
+         Ok(false)
       }
-      Ok(res)
    }
-   fn load_info(datetime_mn: &mut DateTimeManager) {
-      match exec_cmd(TIMEDATE_CTL, vec!["show"]) {
-         Ok(stdout) => {
-            stdout.lines().for_each(|line| {
-               if line.starts_with("Timezone=") {
-                  datetime_mn.timezone = line.split_at(9).1.trim().to_owned();
-               } else if line.starts_with("LocalRTC=") {
-                  if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
-                     datetime_mn.local_rtc = get_bool_yesno(val);
-                  }
-               } else if line.starts_with("CanNTP=") {
-                  if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
-                     datetime_mn.can_ntp = get_bool_yesno(val)
-                  }
-               } else if line.starts_with("NTP=") {
-                  if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
-                     datetime_mn.ntp = get_bool_yesno(val)
-                  }
-               } else if line.starts_with("NTPSynchronized=") {
-                  if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
-                     datetime_mn.ntp_sync = get_bool_yesno(val)
-                  }
-               } else if line.starts_with("TimeUSec=") {
-                  datetime_mn.time_usec = line.split_at(9).1.trim().to_owned();
-               } else if line.starts_with("RTCTimeUSec=") {
-                  datetime_mn.rtc_time_usec = line.split_at(12).1.trim().to_owned();
-               } 
-            });
-         }
-         Err(err) => eprintln!("{}", err), // error handling here
-      }
+   fn load_info(&mut self) -> Result<(), Error> {
+      let stdout = exec_cmd(TIMEDATE_CTL, vec!["show"])?;
+      stdout.lines().for_each(|line| {
+         if line.starts_with("Timezone=") {
+            self.timezone = line.split_at(9).1.trim().to_owned();
+         } else if line.starts_with("LocalRTC=") {
+            if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
+               self.local_rtc = get_bool_yesno(val);
+            }
+         } else if line.starts_with("CanNTP=") {
+            if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
+               self.can_ntp = get_bool_yesno(val)
+            }
+         } else if line.starts_with("NTP=") {
+            if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
+               self.ntp = get_bool_yesno(val)
+            }
+         } else if line.starts_with("NTPSynchronized=") {
+            if let Some(val) = line.split('=').collect::<Vec<&str>>().get(1) {
+               self.ntp_sync = get_bool_yesno(val)
+            }
+         } else if line.starts_with("TimeUSec=") {
+            self.time_usec = line.split_at(9).1.trim().to_owned();
+         } else if line.starts_with("RTCTimeUSec=") {
+            self.rtc_time_usec = line.split_at(12).1.trim().to_owned();
+         } 
+      });
+      Ok(())
    }
 }
 

@@ -40,50 +40,42 @@ impl LocaleManager {
          ..
       } = &mut locale_mn;
 
-      match exec_cmd(LOCALE, Vec::new()) {
-         Ok(stdout) => {
-            stdout.lines().for_each(|line| {
-               if line.starts_with(format!("{}", LC_Keywords::LANG).as_str()) {
-                  *lang = get_val_from_keyval(line, None);
-               } else if line.starts_with(format!("{}", LC_Keywords::LC_NUMERIC).as_str()) {
-                  lc_numeric.0 = get_val_from_keyval(line, None);
-                  lc_numeric.1 = LCNumeric::new().unwrap_or_default();
-               } else if line.starts_with(format!("{}", LC_Keywords::LC_TIME).as_str()) {
-                  lc_time.0 = get_val_from_keyval(line, None);
-                  lc_time.1 = LCTime::new().unwrap_or_default();
-               } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
-                  lc_monetary.0 = get_val_from_keyval(line, None);
-                  lc_monetary.1 = LCMonetary::new().unwrap_or_default();
-               } else if line.starts_with(format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()) {
-                  lc_measure.0 = get_val_from_keyval(line, None);
-                  lc_measure.1 = LCMeasure::new().unwrap_or_default();
-               } 
-            });
-         },
-         Err(err) => return Err(err), // error handling here
-      }
+      let mut stdout = exec_cmd(LOCALE, Vec::new())?;
+      stdout.lines().for_each(|line| {
+         if line.starts_with(format!("{}", LC_Keywords::LANG).as_str()) {
+            *lang = get_val_from_keyval(line, None);
+         } else if line.starts_with(format!("{}", LC_Keywords::LC_NUMERIC).as_str()) {
+            lc_numeric.0 = get_val_from_keyval(line, None);
+            lc_numeric.1 = LCNumeric::new().unwrap_or_default();
+         } else if line.starts_with(format!("{}", LC_Keywords::LC_TIME).as_str()) {
+            lc_time.0 = get_val_from_keyval(line, None);
+            lc_time.1 = LCTime::new().unwrap_or_default();
+         } else if line.starts_with(format!("{}", LC_Keywords::LC_MONETARY).as_str()) {
+            lc_monetary.0 = get_val_from_keyval(line, None);
+            lc_monetary.1 = LCMonetary::new().unwrap_or_default();
+         } else if line.starts_with(format!("{}", LC_Keywords::LC_MEASUREMENT).as_str()) {
+            lc_measure.0 = get_val_from_keyval(line, None);
+            lc_measure.1 = LCMeasure::new().unwrap_or_default();
+         } 
+      });
 
       *language = std::env::var(format!("{}", LC_Keywords::LANGUAGE)).unwrap_or(String::new());
 
-      match exec_cmd(LOCALE_DEF, vec!["--list-archive"]) {
-         Ok(stdout) => {
-            *list_locales = stdout.lines().filter(|line| line.contains(".utf8")).map(|line| {
-               let line_break = line.split('.').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>();
-               let locale = line_break.first().unwrap();
-               match line_break.get(1) {
-                  Some(charset) => {
-                     let uppercase_charset = charset.to_uppercase();
-                     let digit_idx = uppercase_charset.chars().position(|c| c.is_numeric()).unwrap();
-                     let formatted_charset = uppercase_charset.split_at(digit_idx);
-                     format!("{}.{}-{}", locale, formatted_charset.0, formatted_charset.1)
-                  },
-                  None => locale.to_string()
-               }
-               
-            }).collect();
-         },
-         Err(err) => return Err(err), // error handling here
-      }
+      stdout = exec_cmd(LOCALE_DEF, vec!["--list-archive"])?;
+      *list_locales = stdout.lines().filter(|line| line.contains(".utf8")).map(|line| {
+         let line_break = line.split('.').collect::<Vec<&str>>().iter().map(|s| s.to_string()).collect::<Vec<String>>();
+         let locale = line_break.first().unwrap();
+         match line_break.get(1) {
+            Some(charset) => {
+               let uppercase_charset = charset.to_uppercase();
+               let digit_idx = uppercase_charset.chars().position(|c| c.is_numeric()).unwrap();
+               let formatted_charset = uppercase_charset.split_at(digit_idx);
+               format!("{}.{}-{}", locale, formatted_charset.0, formatted_charset.1)
+            },
+            None => locale.to_string()
+         }
+         
+      }).collect();
       locale_mn.fetch_list_region_lang();
       Ok(locale_mn)
    }
