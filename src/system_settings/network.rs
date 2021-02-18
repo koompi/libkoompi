@@ -1,9 +1,6 @@
-mod auto_gen;
-#[macro_use]
-mod network_manager;
-mod test;
-mod types;
+pub mod accesspoint;
+pub mod auto_gen;
+pub mod wifi;
+pub use accesspoint::{get_accesspoints, AccessPoint};
 pub use auto_gen::*;
-pub use network_manager::*;
-pub use test::*;
-pub use types::*;
+pub use wifi::Wifi;

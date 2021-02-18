@@ -1,7 +1,7 @@
-use serde::{Deserialize};
+use super::locale_manager::{LC_Keywords, LOCALE};
+use crate::helpers::{exec_cmd, get_list_by_sep, get_val_from_keyval};
+use serde::Deserialize;
 use std::io::Error;
-use crate::helpers::{get_list_by_sep, exec_cmd, get_val_from_keyval};
-use super::locale_manager::{LOCALE, LC_Keywords};
 
 /// Structure of LC_NUMERIC
 #[derive(Debug, Clone, Default, Deserialize)]

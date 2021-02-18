@@ -147,11 +147,11 @@ mod tests {
                if res {
                   println!("{}", *dt_mn.timezone());
                }
-            } 
+            }
             println!("{:#?}", dt_mn.list_timezones());
             assert_eq!(*dt_mn.timezone(), "Phnom_Penh");
-         },
-         Err(err) => println!("{}", err)
+         }
+         Err(err) => println!("{}", err),
       }
    }
 }
