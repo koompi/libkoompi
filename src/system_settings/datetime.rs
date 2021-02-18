@@ -1,11 +1,12 @@
 use std::io::Error;
-use crate::helpers::{get_bool_yesno, exec_cmd};
+use crate::helpers::{get_bool_yesno, exec_cmd, constants::PKEXEC};
 use getset::{Getters};
 use std::collections::HashMap;
 use itertools::Itertools;
 
 const TIMEDATE_CTL: &str = "timedatectl";
 
+/// Structure of DateTimeManager
 #[derive(Debug, Clone, Getters)]
 pub struct DateTimeManager {
    #[getset(get = "pub")]
@@ -37,7 +38,9 @@ impl Default for DateTimeManager {
    }
 }
 
+// Public API
 impl DateTimeManager {
+   /// Initialize method
    pub fn new() -> Result<Self, Error> {
       let mut datetime_mn = Self::default();
       datetime_mn.load_info()?;
@@ -49,6 +52,7 @@ impl DateTimeManager {
       Ok(datetime_mn)
    }
 
+   /// This method is used to set datetime manually.
    pub fn set_datetime(&mut self, datetime: &str) -> Result<bool, Error> {
       if !self.ntp {
          exec_cmd(TIMEDATE_CTL, vec!["set-time", datetime])?;
@@ -60,9 +64,10 @@ impl DateTimeManager {
       }
    }
 
+   /// This method is used to set timezone manually.
    pub fn set_timezone(&mut self, tz: &str) -> Result<bool, Error> {
       if !self.ntp {
-         exec_cmd("ln", vec!["-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"])?;
+         exec_cmd(PKEXEC, vec!["ln", "-sf", format!("/usr/share/zoneinfo/{}", tz).as_str(), "/etc/localtime"])?;
          self.timezone = tz.to_owned();
          self.load_info()?;
          Ok(true)
@@ -71,6 +76,7 @@ impl DateTimeManager {
       }
    }
 
+   /// This method is used to enable/disable Network Time Protocol.
    pub fn set_ntp(&mut self, ntp: bool) -> Result<bool, Error> {
       exec_cmd(TIMEDATE_CTL, vec!["set-ntp", format!("{}", ntp).as_str()])?;
       self.ntp = ntp;
@@ -80,6 +86,7 @@ impl DateTimeManager {
       Ok(true)
    }
 
+   /// This method is used to set Local RealTime Clock.
    pub fn set_local_rtc(&mut self, local_rtc: bool) -> Result<bool, Error> {
       if !self.ntp {
          exec_cmd(TIMEDATE_CTL, vec!["set-local-rtc", if local_rtc {"true"} else {"0"}])?;
@@ -89,6 +96,8 @@ impl DateTimeManager {
          Ok(false)
       }
    }
+
+   /// This method is to load all info about date time.
    fn load_info(&mut self) -> Result<(), Error> {
       let stdout = exec_cmd(TIMEDATE_CTL, vec!["show"])?;
       stdout.lines().for_each(|line| {

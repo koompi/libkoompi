@@ -11,11 +11,11 @@
 [-] userdel -r usrname // delete user and home dir
 
 /// GROUP
-[] getent group {1000..2000} | awk -F: '{ print $1 }' // list of all user-defined group's name seperate by newline
-[] gpasswd -d user group // remove user from group
-[] gpasswd -a user group // add user to group
-[] gpasswd -M user1,user2,user3,... group // set list of group members
-[] gpasswd -M "$(getent group groupname | awk -F: '$4 {print $4","}')"user1,user2,user3,... groupname // add users to group
-[] groupadd groupname // add group with group name
-[] groupmod -n new_gname old_gname // change group name
-[] groupdel groupname // delete group
+[-] getent group {1000..2000} | awk -F: '{ print $1 }' // list of all user-defined group's name seperate by newline
+[-] gpasswd -d user group // remove user from group
+[-] gpasswd -a user group // add user to group
+[-] gpasswd -M user1,user2,user3,... group // set list of group members
+[-] gpasswd -M "$(getent group groupname | awk -F: '$4 {print $4","}')"user1,user2,user3,... groupname // add users to group
+[-] groupadd groupname // add group with group name
+[-] groupmod -n new_gname old_gname // change group name
+[-] groupdel groupname // delete group

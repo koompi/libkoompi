@@ -168,7 +168,7 @@ impl LocaleManager {
    }
 
    pub fn set_locale(&mut self, key: LC_Keywords, locale: &str) -> Result<(), Error> {
-      std::env::set_var(format!("{}", key), locale);
+      std::env::set_var(key.to_string(), locale);
       use LC_Keywords::*;
       match key {
          LANG => self.tmp_locale.lang = locale.to_owned(),
