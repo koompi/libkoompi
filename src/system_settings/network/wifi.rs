@@ -1,8 +1,8 @@
 use std::process::Command;
 use std::{fmt, io};
 pub trait Connectivity: fmt::Debug {
-    fn connect(&mut self, ssid: &str, password: &str) -> Result<bool, WifiConnectionError>;
-    fn disconnect(&mut self, ssid: &str) -> Result<bool, WifiConnectionError>;
+    fn connect(ssid: &str, password: &str) -> Result<bool, WifiConnectionError>;
+    fn disconnect(ssid: &str) -> Result<bool, WifiConnectionError>;
 }
 
 pub trait WifiInterface: fmt::Debug {
@@ -72,7 +72,7 @@ impl WifiInterface for Wifi {
     }
 }
 impl Connectivity for Wifi {
-    fn connect(&mut self, ssid: &str, password: &str) -> Result<bool, WifiConnectionError> {
+    fn connect(ssid: &str, password: &str) -> Result<bool, WifiConnectionError> {
         if !Wifi::is_wifi_enabled().map_err(|err| WifiConnectionError::Other { kind: err })? {
             return Err(WifiConnectionError::Other { kind: WifiError::WifiDisabled });
         }
@@ -86,7 +86,7 @@ impl Connectivity for Wifi {
             Ok(true)
         }
     }
-    fn disconnect(&mut self, ssid: &str) -> Result<bool, WifiConnectionError> {
+    fn disconnect(ssid: &str) -> Result<bool, WifiConnectionError> {
         let output = Command::new("nmcli").args(&["connection", "down", ssid]).output().map_err(|err| WifiConnectionError::FailedToDisconnect(format!("{}", err)))?;
         if !String::from_utf8_lossy(&output.stdout).as_ref().contains("successfully deactivated") {
             Ok(false)
@@ -98,10 +98,9 @@ impl Connectivity for Wifi {
 
 #[test]
 fn test_wifi() -> Result<(), WifiConnectionError> {
-    let mut wifi = Wifi::default();
     println!("turn off wifi: {:?}", Wifi::turn_on());
     println!("is wifi enable :{:?}", Wifi::is_wifi_enabled());
-    match wifi.connect("Koompi OS", "Hi@Koompi1") {
+    match Wifi::connect("Koompi OS", "Hi@Koompi") {
         Ok(is_success) => println!("Connection success: {}", is_success),
         Err(e) => println!("Error: {:?}", e),
     }
