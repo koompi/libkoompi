@@ -29,11 +29,8 @@ pub fn get_accesspoints() -> Result<Vec<AccessPoint>, Error> {
     let result: Result<Vec<dbus::Path<'static>>, dbus::Error> = proxy.method_call(SERVICE_INTERFACE, "GetDevices", ()).and_then(|r: (Vec<dbus::Path<'static>>,)| Ok(r.0));
     use dbus::blocking::stdintf::org_freedesktop_dbus::Properties;
     for i in &result.unwrap() {
-        println!("Path: {:?}", i);
         proxy = conn.with_proxy(SERVICE_NAME, i, Duration::from_millis(1000));
         let dev_type: u32 = proxy.get("org.freedesktop.NetworkManager.Device", "DeviceType")?;
-        println!("Device Type Wireless is : {:?}", dev_type);
-
         if dev_type == 2 {
             let wifi_deice = Proxy::new(SERVICE_NAME, i, Duration::from_millis(1000), &conn);
             let dict: PropMap = HashMap::new();
