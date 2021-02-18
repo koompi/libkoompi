@@ -1,8 +1,8 @@
 use std::process::Command;
 use std::{fmt, io};
 pub trait Connectivity: fmt::Debug {
-    fn connect(ssid: &str, password: &str) -> Result<bool, WifiConnectionError>;
-    fn disconnect(ssid: &str) -> Result<bool, WifiConnectionError>;
+    fn connect(ssid: String, password: String) -> Result<bool, WifiConnectionError>;
+    fn disconnect(ssid: String) -> Result<bool, WifiConnectionError>;
 }
 
 pub trait WifiInterface: fmt::Debug {
@@ -72,12 +72,12 @@ impl WifiInterface for Wifi {
     }
 }
 impl Connectivity for Wifi {
-    fn connect(ssid: &str, password: &str) -> Result<bool, WifiConnectionError> {
+    fn connect(ssid: String, password: String) -> Result<bool, WifiConnectionError> {
         if !Wifi::is_wifi_enabled().map_err(|err| WifiConnectionError::Other { kind: err })? {
             return Err(WifiConnectionError::Other { kind: WifiError::WifiDisabled });
         }
         let output = Command::new("nmcli")
-            .args(&["d", "wifi", "connect", ssid, "password", &password])
+            .args(&["d", "wifi", "connect", &ssid, "password", &password])
             .output()
             .map_err(|err| WifiConnectionError::FailedToConnect(format!("{}", err)))?;
         if !String::from_utf8_lossy(&output.stdout).as_ref().contains("successfully activated") {
@@ -86,8 +86,8 @@ impl Connectivity for Wifi {
             Ok(true)
         }
     }
-    fn disconnect(ssid: &str) -> Result<bool, WifiConnectionError> {
-        let output = Command::new("nmcli").args(&["connection", "down", ssid]).output().map_err(|err| WifiConnectionError::FailedToDisconnect(format!("{}", err)))?;
+    fn disconnect(ssid: String) -> Result<bool, WifiConnectionError> {
+        let output = Command::new("nmcli").args(&["connection", "down", &ssid]).output().map_err(|err| WifiConnectionError::FailedToDisconnect(format!("{}", err)))?;
         if !String::from_utf8_lossy(&output.stdout).as_ref().contains("successfully deactivated") {
             Ok(false)
         } else {
@@ -100,7 +100,7 @@ impl Connectivity for Wifi {
 fn test_wifi() -> Result<(), WifiConnectionError> {
     println!("turn off wifi: {:?}", Wifi::turn_on());
     println!("is wifi enable :{:?}", Wifi::is_wifi_enabled());
-    match Wifi::connect("Koompi OS", "Hi@Koompi") {
+    match Wifi::connect("Koompi OS".to_string(), "Hi@Koompi".to_string()) {
         Ok(is_success) => println!("Connection success: {}", is_success),
         Err(e) => println!("Error: {:?}", e),
     }
