@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
+/// Variants of User Account Type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountType {
    Normal,
@@ -7,7 +8,8 @@ pub enum AccountType {
 }
 
 impl AccountType {
-   const ALL: [AccountType; 2] = [
+   /// List of available Account Type
+   pub const ALL: [AccountType; 2] = [
       AccountType::Normal,
       AccountType::Admin
    ];

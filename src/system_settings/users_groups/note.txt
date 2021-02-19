@@ -6,7 +6,7 @@
 [-] gpasswd -a user wheel // change user to admin group
 [-] gpasswd -d user wheel // remove user from admin group
 [-] useradd -c fullname -N usrname // add new user
-[] passwd usrname // set or change password for user
+[-] passwd usrname // set or change password for user
 [-] usermod -u uid -g gname -l login_name -c fullname -s shell [-m -d home_dir] usrname // change user info
 [-] userdel -r usrname // delete user and home dir
 
