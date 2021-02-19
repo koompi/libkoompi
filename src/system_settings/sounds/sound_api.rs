@@ -50,6 +50,24 @@ pub struct Handler {
     pub context: Rc<RefCell<Context>>,
     pub introspect: introspect::Introspector,
 }
+impl Default for Handler {
+    fn default() -> Self {
+        let mut proplist = Proplist::new().unwrap();
+        proplist.set_str(pulse::proplist::properties::APPLICATION_NAME, "SystemSound").unwrap();
+
+        let mainlp = Rc::new(RefCell::new(Mainloop::new().expect("Failed to create mainloop")));
+
+        let con = Rc::new(RefCell::new(Context::new_with_proplist(mainlp.borrow().deref(), "MainConn", &proplist).expect("Failed to create new context")));
+
+        con.borrow_mut().connect(None, FlagSet::NOFLAGS, None).expect("Failed to connect context");
+        let intro = con.borrow_mut().introspect();
+        Self {
+            mainloop: mainlp,
+            context: con,
+            introspect: intro,
+        }
+    }
+}
 
 impl Handler {
     pub fn connect(name: &str) -> Result<Handler, PulseCtlError> {

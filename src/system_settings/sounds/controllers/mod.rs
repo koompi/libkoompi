@@ -84,7 +84,7 @@ pub trait SoundPort {
 fn volume_from_percent(volume: f64) -> f64 {
     (volume * 100.0) * (f64::from(Volume::NORMAL.0) / 100.0)
 }
-
+#[derive(Default)]
 pub struct SinkController {
     pub handler: Handler,
 }
@@ -407,7 +407,7 @@ impl AppControl<ApplicationInfo> for SinkController {
         Ok(result.unwrap())
     }
 }
-
+#[derive(Default)]
 pub struct SourceController {
     pub handler: Handler,
 }
