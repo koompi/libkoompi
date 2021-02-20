@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::io::Error;
+use std::path::{Path, PathBuf};
 use super::groups::GPASSWD;
 use super::account_type::AccountType;
 use super::super::users_groups::{ADM_GROUP, PASSWD};
@@ -18,8 +19,8 @@ pub struct User {
    acc_type: AccountType,
    fullname: String,
    usrname: String,
-   login_shell: String,
-   home_dir: String,
+   login_shell: PathBuf,
+   home_dir: PathBuf,
    groups: Vec<String>,
 }
 
@@ -54,15 +55,15 @@ impl User {
          uid, gid, 
          fullname: fullname.to_string(), 
          usrname: usrname.clone(), 
-         login_shell: login_shell.to_string(), 
-         home_dir: home_dir.to_string(), 
+         login_shell: PathBuf::from(&login_shell.to_string()), 
+         home_dir: PathBuf::from(&home_dir.to_string()), 
          acc_type: if ls_admin.contains(&usrname.as_str()) {AccountType::Admin} else {AccountType::Normal},
          ..Self::default()
       }
    }
 
    /// This method is used to toggle account type of the user and return a message. 
-   pub(super) fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
+   pub fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
       let opt = match account_type {
          AccountType::Normal => "-d",
          AccountType::Admin => "-a",
@@ -73,7 +74,7 @@ impl User {
    }
 
    /// This method is used to change user account information except account typpe and password.
-   pub(super) fn change_info<T: AsRef<str>>(&mut self, uid: Option<T>, gname: Option<T>, fullname: T, login_name: Option<T>, login_shell: T, home_dir: Option<T>) -> Result<bool, Error> {
+   pub(super) fn change_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, uid: Option<T>, gname: Option<T>, fullname: T, login_name: Option<T>, login_shell: P, home_dir: Option<P>) -> Result<bool, Error> {
       let mut args = Vec::new();
       if let Some(uid) = &uid {
          if let Ok(uid_u16) = uid.as_ref().to_string().parse() { 
@@ -95,13 +96,13 @@ impl User {
             args.extend(vec!["-l", usrname.as_ref()]);
             self.usrname = usrname.as_ref().to_string();
          }
-      } if login_shell.as_ref() != &self.login_shell {
-         args.extend(vec!["-s", login_shell.as_ref()]);
-         self.login_shell = login_shell.as_ref().to_string();
+      } if login_shell.as_ref().ne(&self.login_shell) {
+         args.extend(vec!["-s", login_shell.as_ref().to_str().unwrap()]);
+         self.login_shell = login_shell.as_ref().into();
       } if let Some(home_dir) = &home_dir {
          if home_dir.as_ref() != &self.home_dir {
-            args.extend(vec!["-m", "-d", home_dir.as_ref()]);
-            self.home_dir = home_dir.as_ref().to_string();
+            args.extend(vec!["-m", "-d", home_dir.as_ref().to_str().unwrap()]);
+            self.home_dir = home_dir.as_ref().into();
          } 
       }
 
@@ -116,7 +117,7 @@ impl User {
    }
 
    /// This method is used to change password for the user account.
-   pub(super) fn change_password<T: AsRef<str>>(&mut self, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
+   pub fn change_password<T: AsRef<str>>(&mut self, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
       exec_spawn_cmd(PASSWD, Vec::new(), Some(&vec![curr_pwd.as_ref(), pwd.as_ref(), verify_pwd.as_ref()].join("\n")))?;
       Ok(())
    }
@@ -127,7 +128,7 @@ impl User {
    }
 
    /// This method is used to reset other users account's password.
-   pub(super) fn reset_password<T: AsRef<str>>(usrname: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
+   pub fn reset_password<T: AsRef<str>>(usrname: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
       exec_spawn_cmd(PKEXEC, vec![PASSWD, usrname.as_ref()], Some(&vec![pwd.as_ref(), verify_pwd.as_ref()].join("\n")))?;
       Ok(())
    }
@@ -181,12 +182,12 @@ impl User {
    }
 
    /// This method is return Login Shell.
-   pub fn login_shell(&self) -> &String {
+   pub fn login_shell(&self) -> &PathBuf {
       &self.login_shell
    }
 
    /// This method is return Home Directory.
-   pub fn home_dir(&self) -> &String {
+   pub fn home_dir(&self) -> &PathBuf {
       &self.home_dir
    }
 

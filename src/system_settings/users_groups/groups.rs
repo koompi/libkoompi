@@ -39,7 +39,7 @@ impl Group {
    }
 
    /// This method is used to set/change list of members of the group instance.
-   pub(super) fn change_membership(&mut self, ls_members: Vec<&str>) -> Result<(), Error> {
+   pub fn change_membership(&mut self, ls_members: Vec<&str>) -> Result<(), Error> {
       if ls_members != self.members.iter().map(AsRef::as_ref).collect::<Vec<&str>>() {
          let formatted_members = ls_members.join(",");
          exec_cmd(PKEXEC, vec![GPASSWD, "-M", &formatted_members, &self.gname])?;
@@ -85,7 +85,7 @@ impl Group {
    }
 
    /// This method is used to change group name after check with current name.
-   pub(super) fn change_name<T: AsRef<str>>(&mut self, new_gname: T) -> Result<bool, Error> {
+   pub fn change_name<T: AsRef<str>>(&mut self, new_gname: T) -> Result<bool, Error> {
       let mut res = false;
       if new_gname.as_ref() != self.gname.as_str() {
          exec_cmd(PKEXEC, vec![GROUP_MOD, "-n", new_gname.as_ref(), self.gname.as_str()])?;
