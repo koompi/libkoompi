@@ -2,14 +2,14 @@ mod users;
 mod groups;
 mod account_type;
 
-pub use users::*;
-pub use groups::*;
+pub use users::User;
+pub use groups::Group;
 pub use account_type::AccountType;
 use std::io::Error;
 use crate::helpers::{get_list_by_sep, exec_cmd, read_lines};
 
-pub(super) const PASSWD: &str = "passwd";
-pub(super) const ADM_GROUP: &str = "wheel";
+const PASSWD: &str = "passwd";
+const ADM_GROUP: &str = "wheel";
 const GETENT: &str = "getent";
 const CHSH: &str = "chsh";
 const GROUP: &str = "group";
@@ -232,27 +232,27 @@ mod test {
    fn test_users_manager() -> Result<(), Error> {
       match UsersGroupsManager::new() {
          Ok(mut usr_mn) => {
-            // println!("{:#?}", usr_mn);
             if usr_mn.create_group("test")? {
                println!("successfully create test group");
                if usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
                   println!("successfully create test user");
-                  // if usr_mn.delete_user("test")? {
-                  //    println!("successfully delete test user");
-                  //    if usr_mn.delete_group("test")? {
-                  //       println!("successfully delete test group");
-                  //    } else {
-                  //       println!("can not delete group -- group name is not existing -- try again with new name");
-                  //    }
-                  // } else { 
-                  //    println!("can not delete user -- user name is not existing -- try again with new name");
-                  // }
+                  if usr_mn.delete_user("test")? {
+                     println!("successfully delete test user");
+                     if usr_mn.delete_group("test")? {
+                        println!("successfully delete test group");
+                     } else {
+                        println!("can not delete group -- group name is not existing -- try again with new name");
+                     }
+                  } else { 
+                     println!("can not delete user -- user name is not existing -- try again with new name");
+                  }
                } else { 
                   println!("can not create user -- user name is existing -- try again with new name");
                }
             } else {
                println!("can not create group -- group name is existing -- try again with new name");
             }
+            // println!("{:#?}", usr_mn);
          },
          Err(err) => eprintln!("{:?}", err)
       }
