@@ -123,7 +123,7 @@ impl User {
    }
 
    /// This method is used to check whether this user has permission to reset other users account's password.
-   pub fn can_reset_password(&self) -> bool {
+   pub fn is_admin(&self) -> bool {
       self.acc_type == AccountType::Admin
    }
 
