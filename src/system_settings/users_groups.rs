@@ -40,14 +40,14 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new user after check for username exists and then refresh users database.
-   pub fn create_user<T: AsRef<str>>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<Option<User>, Error> {
       if !self.ls_users.iter().any(|user| user.username().eq(usrname.as_ref())) {
-         User::new(fullname, usrname, account_type, pwd, verify_pwd)?;
+         User::new(fullname, usrname.clone(), account_type, pwd, verify_pwd)?;
          self.load_users()?;
-         res = true;
+         Ok(self.ls_users.iter().find(|usr| usr.username().eq(&usrname.as_ref())).map(ToOwned::to_owned))
+      } else {
+         Ok(None)
       }
-      Ok(res)
    }
 
    // /// This method is used to change user account type by specified username and account type.
@@ -114,14 +114,14 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new group after check for group name exists and then refresh groups database.
-   pub fn create_group<T: AsRef<str>>(&mut self, gname: T) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<Option<Group>, Error> {
       if !self.ls_groups.iter().any(|group| group.name().eq(gname.as_ref())) {
-         Group::new(gname)?;
+         Group::new(gname.clone())?;
          self.load_groups()?;
-         res = true;
+         Ok(self.ls_groups.iter().find(|group| group.name().eq(gname.as_ref())).map(ToOwned::to_owned))
+      } else {
+         Ok(None)
       }
-      Ok(res)
    }
 
    // /// This method is used to change group name by specified current group name and new group name.
