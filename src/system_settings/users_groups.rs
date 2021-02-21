@@ -14,7 +14,7 @@ const ADM_GROUP: &str = "wheel";
 const GETENT: &str = "getent";
 const CHSH: &str = "chsh";
 const GROUP: &str = "group";
-const ID: &str = "id";
+const ID: &str = "whoami";
 const USERS_DB_PATH: &str = "/etc/passwd";
 const GROUP_DB_PATH: &str = "/etc/group";
 const MIN_UID: u16 = 1000;
@@ -34,8 +34,8 @@ impl UsersGroupsManager {
    pub fn new() -> Result<Self, Error> {
       let mut ug_mn = Self::default();
       ug_mn.load_users()?;
-      ug_mn.load_curr_user()?;
       ug_mn.load_groups()?;
+      ug_mn.load_curr_user()?;
       Ok(ug_mn)
    }
 
@@ -231,8 +231,11 @@ impl UsersGroupsManager {
    }
 
    fn load_curr_user(&mut self) -> Result<(), Error> {
-      let usrname = exec_cmd(ID, vec!["-u", "-n"])?;
-      self.curr_urs = self.ls_users.iter().find(|usr| usr.username().eq(&usrname)).unwrap().clone();
+      let usrname = exec_cmd(ID, Vec::new())?;
+      self.curr_urs = match self.ls_users.iter().position(|usr| usr.username().eq(&usrname.trim())) {
+         Some(idx) => self.ls_users[idx].to_owned(),
+         None => User::default()
+      };
       Ok(())
    }
 
@@ -254,27 +257,28 @@ mod test {
    fn test_users_manager() -> Result<(), Error> {
       match UsersGroupsManager::new() {
          Ok(mut usr_mn) => {
-            if usr_mn.create_group("test")? {
-               println!("successfully create test group");
-               if usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
-                  println!("successfully create test user");
-                  if usr_mn.delete_user("test")? {
-                     println!("successfully delete test user");
-                     if usr_mn.delete_group("test")? {
-                        println!("successfully delete test group");
-                     } else {
-                        println!("can not delete group -- group name is not existing -- try again with new name");
-                     }
-                  } else { 
-                     println!("can not delete user -- user name is not existing -- try again with new name");
-                  }
-               } else { 
-                  println!("can not create user -- user name is existing -- try again with new name");
-               }
-            } else {
-               println!("can not create group -- group name is existing -- try again with new name");
-            }
-            // println!("{:#?}", usr_mn);
+            println!("{:?}", usr_mn.current_user());
+            // if usr_mn.create_group("test")? {
+            //    println!("successfully create test group");
+            //    if usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
+            //       println!("successfully create test user");
+            //       if usr_mn.delete_user("test")? {
+            //          println!("successfully delete test user");
+            //          if usr_mn.delete_group("test")? {
+            //             println!("successfully delete test group");
+            //          } else {
+            //             println!("can not delete group -- group name is not existing -- try again with new name");
+            //          }
+            //       } else { 
+            //          println!("can not delete user -- user name is not existing -- try again with new name");
+            //       }
+            //    } else { 
+            //       println!("can not create user -- user name is existing -- try again with new name");
+            //    }
+            // } else {
+            //    println!("can not create group -- group name is existing -- try again with new name");
+            // }
+            println!("{:#?}", usr_mn);
          },
          Err(err) => eprintln!("{:?}", err)
       }
