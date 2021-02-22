@@ -54,7 +54,7 @@ pub fn get_accesspoints() -> Result<Vec<AccessPoint>, Error> {
             let wifi_deice = Proxy::new(SERVICE_NAME, i, Duration::from_millis(500), &conn);
             let dict: PropMap = HashMap::new();
             let _device: Result<(), Error> = wifi_deice.method_call("org.freedesktop.NetworkManager.Device.Wireless", "RequestScan", (dict,));
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_millis(1000));
             let accessspoint: Result<Vec<dbus::Path<'static>>, dbus::Error> = wifi_deice.method_call("org.freedesktop.NetworkManager.Device.Wireless", "GetAccessPoints", ()).and_then(|r: (Vec<dbus::Path<'static>>,)| Ok(r.0));
             match accessspoint {
                 Ok(data) => {
