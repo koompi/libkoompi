@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::io::Error;
 use crate::helpers::{exec_cmd, get_list_by_sep, constants::PKEXEC};
+use titlecase::titlecase;
 
 pub(super) const GPASSWD: &str = "gpasswd";
 const GROUP_ADD: &str = "groupadd";
@@ -85,7 +86,7 @@ impl Group {
    }
 
    /// This method is used to change group name after check with current name.
-   pub fn change_name<T: AsRef<str>>(&mut self, new_gname: T) -> Result<bool, Error> {
+   pub(super) fn change_name<T: AsRef<str>>(&mut self, new_gname: T) -> Result<bool, Error> {
       let mut res = false;
       if new_gname.as_ref() != self.gname.as_str() {
          exec_cmd(PKEXEC, vec![GROUP_MOD, "-n", new_gname.as_ref(), self.gname.as_str()])?;
@@ -109,6 +110,10 @@ impl Group {
    /// This method is return group Name.
    pub fn name(&self) -> &String {
       &self.gname
+   }
+
+   pub fn formatted_name(&self) -> String {
+      titlecase(self.gname.replace("_", " ").as_str())
    }
 
    /// This method is return group members.

@@ -74,11 +74,11 @@ impl User {
    }
 
    /// This method is used to change user account information except account typpe and password.
-   pub(super) fn change_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, uid: Option<T>, gname: Option<T>, fullname: T, login_name: Option<T>, login_shell: P, home_dir: Option<P>) -> Result<bool, Error> {
+   pub(super) fn change_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, uid: Option<T>, gname: Option<T>, fullname: T, login_name: Option<T>, login_shell: Option<P>, home_dir: Option<P>) -> Result<bool, Error> {
       let mut args = Vec::new();
       if let Some(uid) = &uid {
          if let Ok(uid_u16) = uid.as_ref().to_string().parse() { 
-            if self.uid != uid_u16 {
+            if self.uid.ne(&uid_u16) {
                args.extend(vec!["-u", uid.as_ref()]);
                self.uid = uid_u16;
             }
@@ -88,19 +88,21 @@ impl User {
          if let Ok(gid) = gname.as_ref().to_string().parse() {
             self.gid = gid;
          }
-      } if fullname.as_ref() != self.fullname() {
+      } if fullname.as_ref().ne(self.fullname()) {
          args.extend(vec!["-c", fullname.as_ref()]);
          self.fullname = fullname.as_ref().to_string();
       } if let Some(usrname) = &login_name {
-         if usrname.as_ref() != &self.usrname {
+         if usrname.as_ref().ne(&self.usrname) {
             args.extend(vec!["-l", usrname.as_ref()]);
             self.usrname = usrname.as_ref().to_string();
          }
-      } if login_shell.as_ref().ne(&self.login_shell) {
-         args.extend(vec!["-s", login_shell.as_ref().to_str().unwrap()]);
-         self.login_shell = login_shell.as_ref().into();
+      } if let Some(login_shell) = &login_shell {
+         if login_shell.as_ref().ne(&self.login_shell) {
+            args.extend(vec!["-s", login_shell.as_ref().to_str().unwrap()]);
+            self.login_shell = login_shell.as_ref().into();
+         } 
       } if let Some(home_dir) = &home_dir {
-         if home_dir.as_ref() != &self.home_dir {
+         if home_dir.as_ref().ne(&self.home_dir) {
             args.extend(vec!["-m", "-d", home_dir.as_ref().to_str().unwrap()]);
             self.home_dir = home_dir.as_ref().into();
          } 

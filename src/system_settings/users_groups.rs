@@ -5,7 +5,7 @@ mod account_type;
 pub use users::User;
 pub use groups::Group;
 pub use account_type::AccountType;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::path::Path;
 use crate::helpers::{get_list_by_sep, exec_cmd, read_lines};
 
@@ -14,7 +14,7 @@ const ADM_GROUP: &str = "wheel";
 const GETENT: &str = "getent";
 const CHSH: &str = "chsh";
 const GROUP: &str = "group";
-const ID: &str = "whoami";
+const ID: &str = "id";
 const USERS_DB_PATH: &str = "/etc/passwd";
 const GROUP_DB_PATH: &str = "/etc/group";
 const MIN_UID: u16 = 1000;
@@ -23,9 +23,10 @@ const MAX_UID: u16 = 2000;
 /// Structure of Users & Groups Manager
 #[derive(Debug, Clone, Default)]
 pub struct UsersGroupsManager {
-   curr_urs: User,
+   curr_uid: u16,
    ls_users: Vec<User>,
    ls_groups: Vec<Group>,
+   login_shells: Vec<String>,
 }
 
 // Public API
@@ -36,15 +37,16 @@ impl UsersGroupsManager {
       ug_mn.load_users()?;
       ug_mn.load_groups()?;
       ug_mn.load_curr_user()?;
+      ug_mn.load_login_shells()?;
       Ok(ug_mn)
    }
 
    /// This method is used to create a new user after check for username exists and then refresh users database.
-   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<Option<User>, Error> {
+   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
       if !self.ls_users.iter().any(|user| user.username().eq(usrname.as_ref())) {
          User::new(fullname, usrname.clone(), account_type, pwd, verify_pwd)?;
          self.load_users()?;
-         Ok(self.ls_users.iter().find(|usr| usr.username().eq(&usrname.as_ref())).map(ToOwned::to_owned))
+         Ok(self.user_from_name(usrname.as_ref()))
       } else {
          Ok(None)
       }
@@ -61,24 +63,50 @@ impl UsersGroupsManager {
    // }
 
    /// This method is used to change user account information by specified username.
-   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<bool, Error> {
+   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: Option<T>, gname: T, fullname: T, login_name: Option<T>, login_shell: P, home_dir: Option<P>) -> Result<bool, Error> {
       let ls_users = self.ls_users.clone();
       let ls_groups = self.ls_groups.clone();
+      let login_shells = self.login_shells.clone();
       if let Some(usr) = self.get_mut_user(usrname) {
-         let usr_id = match uid.as_ref().to_string().parse::<u16>() {
-            Ok(uid) => {
-               if MIN_UID < uid && uid < MAX_UID && !ls_users.iter().any(|usr| usr.uid().eq(&uid)) {
-                  Some(uid.to_string())
+         let usr_id = match uid {
+            Some(uid) => match uid.as_ref().to_string().parse::<u16>() {
+               Ok(uid) => {
+                  if MIN_UID < uid && uid < MAX_UID && !ls_users.iter().any(|usr| usr.uid().eq(&uid)) {
+                     Some(uid.to_string())
+                  } else {
+                     None
+                  }
+               },
+               Err(_) => None
+            },
+            None => None
+         };
+         let grp_name = match gname.as_ref().to_string().parse::<u16>() {
+            Ok(gid) => {
+               if MIN_UID < gid && gid < MAX_UID && ls_groups.iter().any(|grp| grp.gid().eq(&gid)) {
+                  Some(gid.to_string())
+               } else {
+                  None
+               } 
+            },
+            Err(_) => {
+               if ls_groups.iter().any(|grp| grp.name().eq(gname.as_ref())) {
+                  Some(gname.as_ref().to_string())
                } else {
                   None
                }
-            },
-            Err(_) => None
+            }
          };
-         let grp_name = if !ls_groups.iter().any(|grp| grp.name().eq(gname.as_ref())) {Some(gname.as_ref().to_string())} else {None};
-         let usrname = if !ls_users.iter().any(|usr| usr.username().eq(login_name.as_ref())) {Some(login_name.as_ref().to_string())} else {None};
-         let home_dir = if !ls_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir.as_ref())} else {None};
-         usr.change_info(usr_id, grp_name, fullname.as_ref().to_string(), usrname, login_shell.as_ref(), home_dir)
+         let usrname = match login_name {
+            Some(login_name) => if !ls_users.iter().any(|usr| usr.username().eq(login_name.as_ref())) {Some(login_name.as_ref().to_string())} else {None},
+            None => None
+         };
+         let home_dir = match home_dir {
+            Some(home_dir) => if !ls_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir)} else {None},
+            None => None
+         };
+         let login_shell = if login_shells.iter().any(|sh| login_shell.as_ref().eq(Path::new(sh))) {Some(login_shell)} else {None};
+         usr.change_info(usr_id, grp_name, fullname.as_ref().to_string(), usrname, login_shell, home_dir)
       } else {
          Ok(false)
       }
@@ -103,6 +131,7 @@ impl UsersGroupsManager {
    //    Ok(res)
    // }
 
+   /// This method is used to delete a user from database by specified username.
    pub fn delete_user<T: AsRef<str>>(&mut self, usrname: T) -> Result<bool, Error> {
       let mut res = false;
       if let Some(usr) = self.get_mut_user(usrname) {
@@ -114,24 +143,29 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new group after check for group name exists and then refresh groups database.
-   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<Option<Group>, Error> {
+   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<Option<&Group>, Error> {
       if !self.ls_groups.iter().any(|group| group.name().eq(gname.as_ref())) {
          Group::new(gname.clone())?;
          self.load_groups()?;
-         Ok(self.ls_groups.iter().find(|group| group.name().eq(gname.as_ref())).map(ToOwned::to_owned))
+         Ok(self.group_from_name(gname.as_ref()))
       } else {
          Ok(None)
       }
    }
 
-   // /// This method is used to change group name by specified current group name and new group name.
-   // pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<bool, Error> {
-   //    if let Some(group) = self.get_mut_group(gname){
-   //       group.change_name(new_name)
-   //    } else {
-   //       Ok(false)
-   //    }
-   // }
+   /// This method is used to change group name by specified current group name and new group name.
+   pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<bool, Error> {
+      let ls_groups = self.ls_groups.clone();
+      if let Some(group) = self.get_mut_group(gname){
+        if ls_groups.iter().any(|grp| grp.name().eq(new_name.as_ref())) {
+            group.change_name(new_name)
+         } else {
+            Ok(false)
+         }
+      } else {
+         Ok(false)
+      }
+   }
 
    // /// This method is used to set/change list of members of the group by specified group name.
    // pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<bool, Error> {
@@ -154,32 +188,44 @@ impl UsersGroupsManager {
       Ok(res)
    }
 
-   pub fn current_user(&self) -> &User {
-      &self.curr_urs
+   /// This method is used to return current running user.
+   pub fn current_user(&self) -> Option<&User> {
+      self.list_users().iter().find(|usr| usr.uid().eq(&self.curr_uid)).map(ToOwned::to_owned)
    }
 
-   /// This method is used to get current list of users account.
-   pub fn list_users(&self) -> &[User] {
+   /// This method is used to return all user accounts and system accounts available on system.
+   pub fn all_users(&self) -> &[User] {
       self.ls_users.as_slice()
    }
 
-   /// This method is used to get current list of groups account.
-   pub fn list_groups(&self) -> &[Group] {
+   /// This method is used to get current list of users account.
+   pub fn list_users(&self) -> Vec<&User> {
+      self.ls_users.iter().filter(|usr| MIN_UID < usr.uid() && usr.uid() < MAX_UID).collect()
+   }
+
+   /// This method is used to return all user-defined group accounts and system accounts available on system.
+   pub fn all_groups(&self) -> &[Group] {
       self.ls_groups.as_slice()
    }
 
-   pub fn user_from_name<T: AsRef<str>>(&self, usrname: T) -> Option<&User> {
-      self.ls_users.iter().find(|usr| usr.username().eq(usrname.as_ref()))
+   /// This method is used to get current list of groups account.
+   pub fn list_groups(&self) -> Vec<&Group> {
+      self.ls_groups.iter().filter(|grp| MIN_UID < grp.gid() && grp.gid() < MAX_UID).collect()
    }
 
+   /// This method is used to return an User instance if given username is existing in database and user-defined user account.
+   pub fn user_from_name<T: AsRef<str>>(&self, usrname: T) -> Option<&User> {
+      self.list_users().iter().find(|usr| usr.username().eq(usrname.as_ref())).map(ToOwned::to_owned)
+   }
+
+   /// This method is used to return an Group instance if given group name is existing in database and user-defined group account.
    pub fn group_from_name<T: AsRef<str>>(&self, grpname: T) -> Option<&Group> {
-      self.ls_groups.iter().find(|grp| grp.name().eq(grpname.as_ref()))
+      self.list_groups().iter().find(|grp| grp.name().eq(grpname.as_ref())).map(ToOwned::to_owned)
    }
 
    /// This method is used to list all available Login Shells.
-   pub fn login_shells() -> Result<Vec<String>, Error> {
-      let stdout = exec_cmd(CHSH, vec!["-l"])?;
-      Ok(stdout.lines().map(ToString::to_string).collect())
+   pub fn login_shells(&self) -> &[String] {
+      self.login_shells.as_slice()
    }
 } 
 
@@ -187,55 +233,45 @@ impl UsersGroupsManager {
 impl UsersGroupsManager {
    /// Refresh users database after any update.
    fn load_users(&mut self) -> Result<(), Error> {
-      // let users_stdout = exec_spawn_cmd(GETENT, vec![PASSWD, &format!("{{ {}..{} }}", MIN_UID, MAX_UID)])?;
       let allusers = read_lines(USERS_DB_PATH)?;
       let admin_members_stdout = exec_cmd(GETENT, vec![GROUP, ADM_GROUP])?;
       let admin_members = &get_list_by_sep(&admin_members_stdout, ":")[3];
       let ls_admin_usrnames = get_list_by_sep(&admin_members, ",");
-      self.ls_users = allusers.map(|line| {
-         if let Ok(line) = line {
-            let ls_fields = get_list_by_sep(&line, ":");
-            let uid: u16 = ls_fields[2].parse().unwrap();
-            if MIN_UID < uid && uid < MAX_UID {
-               Some(User::from_vec(ls_fields.as_ref(), ls_admin_usrnames.iter().map(AsRef::as_ref).collect()))
-            } else {
-               None
-            }
-         } else {
-            None
-         }
-      })
-      .filter_map(|u| u).collect();
+      self.ls_users = allusers.map(|line| if let Ok(line) = line {
+         Some(User::from_vec(get_list_by_sep(&line, ":").as_ref(), ls_admin_usrnames.iter().map(AsRef::as_ref).collect()))
+      } else {
+         None
+      }).filter_map(|usr| usr).collect();
       Ok(())
    }
 
    /// Refresh groups database after any update.
    fn load_groups(&mut self) -> Result<(), Error> {
-      // let groups_stdout = exec_spawn_cmd(GETENT, vec![GROUP, &format!("{{ {}..{} }}", MIN_UID, MAX_UID)])?;
       let allgroups = read_lines(GROUP_DB_PATH)?;
-      self.ls_groups = allgroups.map(|line| {
-         if let Ok(line) = line {
-            let ls_fields = get_list_by_sep(&line, ":");
-            let gid: u16 = ls_fields[2].parse().unwrap();
-            if MIN_UID < gid && gid < MAX_UID {
-               Some(Group::from_vec(ls_fields.as_ref()))
-            } else {
-               None
-            }
-         } else {
-            None
-         }
-      })
-      .filter_map(|u| u).collect();
+      self.ls_groups = allgroups.map(|line| if let Ok(line) = line {
+         Some(Group::from_vec(get_list_by_sep(&line, ":").as_ref()))
+      } else {
+         None
+      }).filter_map(|grp| grp).collect();
       Ok(())
    }
 
+   /// Load current running user account.
    fn load_curr_user(&mut self) -> Result<(), Error> {
-      let usrname = exec_cmd(ID, Vec::new())?;
-      self.curr_urs = match self.ls_users.iter().position(|usr| usr.username().eq(&usrname.trim())) {
-         Some(idx) => self.ls_users[idx].to_owned(),
-         None => User::default()
-      };
+      let uid = exec_cmd(ID, vec!["-u"])?;
+      match uid.parse::<u16>() {
+         Ok(uid) => {
+            self.curr_uid = uid;
+            Ok(())
+         },
+         Err(err) => Err(Error::new(ErrorKind::Other, err))
+      }
+   }
+
+   /// Load all available login shells.
+   fn load_login_shells(&mut self) -> Result<(), Error> {
+      let stdout = exec_cmd(CHSH, vec!["-l"])?;
+      self.login_shells = stdout.lines().map(ToString::to_string).collect();
       Ok(())
    }
 
@@ -257,28 +293,32 @@ mod test {
    fn test_users_manager() -> Result<(), Error> {
       match UsersGroupsManager::new() {
          Ok(mut usr_mn) => {
-            println!("{:?}", usr_mn.current_user());
-            // if usr_mn.create_group("test")? {
-            //    println!("successfully create test group");
-            //    if usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
-            //       println!("successfully create test user");
-            //       if usr_mn.delete_user("test")? {
-            //          println!("successfully delete test user");
-            //          if usr_mn.delete_group("test")? {
-            //             println!("successfully delete test group");
-            //          } else {
-            //             println!("can not delete group -- group name is not existing -- try again with new name");
-            //          }
-            //       } else { 
-            //          println!("can not delete user -- user name is not existing -- try again with new name");
-            //       }
-            //    } else { 
-            //       println!("can not create user -- user name is existing -- try again with new name");
-            //    }
-            // } else {
-            //    println!("can not create group -- group name is existing -- try again with new name");
-            // }
-            println!("{:#?}", usr_mn);
+            if let Some(_) = usr_mn.create_group("test")? {
+               println!("successfully create test group");
+               if let Some(_) = usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
+                  println!("successfully create test user");
+                  if usr_mn.change_user_info("test", None, "users", "User Test", None, "/bin/fish", None)? {
+                     println!("change info success");
+                  } else {
+                     println!("can not change info");
+                  }
+                  if usr_mn.delete_user("test")? {
+                     println!("successfully delete test user");
+                     if usr_mn.delete_group("test")? {
+                        println!("successfully delete test group");
+                     } else {
+                        println!("can not delete group -- group name is not existing -- try again with new name");
+                     }
+                  } else { 
+                     println!("can not delete user -- user name is not existing -- try again with new name");
+                  }
+               } else { 
+                  println!("can not create user -- user name is existing -- try again with new name");
+               }
+            } else {
+               println!("can not create group -- group name is existing -- try again with new name");
+            }
+            println!("{:#?}", usr_mn); 
          },
          Err(err) => eprintln!("{:?}", err)
       }
