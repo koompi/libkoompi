@@ -5,7 +5,7 @@ use pulse::{
         introspect, subscribe,
         subscribe::{Facility, InterestMaskSet},
     },
-    volume::{ChannelVolumes, Volume},
+    volume::Volume,
 };
 /// Source = microphone etc. something that takes in audio
 /// Source Output = application consuming that audio
