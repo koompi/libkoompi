@@ -27,12 +27,19 @@ pub fn get_accesspoints() -> Result<Vec<AccessPoint>, Error> {
     // Now we make the method call. The ListNames method call take zero input paramters and one output parameter which is an array of strings.Duration
     // Therefore the input is a zero tuple "()" , and the output is a single tuple "(names, "
     let result: Result<Vec<dbus::Path<'static>>, dbus::Error> = proxy.method_call(SERVICE_INTERFACE, "GetDevices", ()).and_then(|r: (Vec<dbus::Path<'static>>,)| Ok(r.0));
+    let device_paths = match result {
+        Ok(res) => res,
+        Err(e) => {
+            println!("Error : {:?}", e);
+            Vec::new()
+        }
+    };
     use dbus::blocking::stdintf::org_freedesktop_dbus::Properties;
-    for i in &result.unwrap() {
-        proxy = conn.with_proxy(SERVICE_NAME, i, Duration::from_millis(1000));
+    for i in &device_paths {
+        proxy = conn.with_proxy(SERVICE_NAME, i, Duration::from_millis(500));
         let dev_type: u32 = proxy.get("org.freedesktop.NetworkManager.Device", "DeviceType")?;
         if dev_type == 2 {
-            let wifi_deice = Proxy::new(SERVICE_NAME, i, Duration::from_millis(1000), &conn);
+            let wifi_deice = Proxy::new(SERVICE_NAME, i, Duration::from_millis(500), &conn);
             let dict: PropMap = HashMap::new();
             let _device: Result<(), Error> = wifi_deice.method_call("org.freedesktop.NetworkManager.Device.Wireless", "RequestScan", (dict,));
             std::thread::sleep(Duration::from_millis(1000));
@@ -73,5 +80,5 @@ fn test_access() {
         }
         Err(e) => println!("Error: {:?}", e),
     }
-    assert_eq!(1, 2)
+    assert_eq!(1, 1)
 }
