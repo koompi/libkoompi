@@ -117,7 +117,7 @@ impl Group {
    }
 
    /// This method is return group members.
-   pub(super) fn members(&self) -> &[String] {
+   pub fn members(&self) -> &[String] {
       self.members.as_slice()
    }
 }

@@ -190,7 +190,7 @@ impl User {
    }
 
    /// This method is return List of group name. Note: You need to call fetch_groups method first.
-   pub(super) fn groups(&self) -> &[String] {
+   pub fn groups(&self) -> &[String] {
       self.groups.as_slice()
    }
 }
