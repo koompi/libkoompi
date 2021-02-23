@@ -40,7 +40,7 @@ impl Group {
    }
 
    /// This method is used to set/change list of members of the group instance.
-   pub fn change_membership(&mut self, ls_members: Vec<&str>) -> Result<(), Error> {
+   pub(super) fn change_membership(&mut self, ls_members: Vec<&str>) -> Result<(), Error> {
       if ls_members != self.members.iter().map(AsRef::as_ref).collect::<Vec<&str>>() {
          let formatted_members = ls_members.join(",");
          exec_cmd(PKEXEC, vec![GPASSWD, "-M", &formatted_members, &self.gname])?;
@@ -117,7 +117,7 @@ impl Group {
    }
 
    /// This method is return group members.
-   pub fn members(&self) -> &[String] {
+   pub(super) fn members(&self) -> &[String] {
       self.members.as_slice()
    }
 }

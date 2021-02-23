@@ -42,14 +42,15 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new user after check for username exists and then refresh users database.
-   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
+   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<bool, Error> {
+      let mut res = false;
       if !self.ls_users.iter().any(|user| user.username().eq(usrname.as_ref())) {
          User::new(fullname, usrname.clone(), account_type, pwd, verify_pwd)?;
          self.load_users()?;
-         Ok(self.user_from_name(usrname.as_ref()))
-      } else {
-         Ok(None)
-      }
+         // Ok(self.user_from_name(usrname.as_ref()))
+         res = true;
+      } 
+      Ok(res)
    }
 
    // /// This method is used to change user account type by specified username and account type.
@@ -112,24 +113,32 @@ impl UsersGroupsManager {
       }
    }
 
-   // /// This method is used to change user password by specified username.
-   // pub fn change_user_password<T: AsRef<str>>(&mut self, usrname: T, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<bool, Error> {
-   //    let mut res = false;
-   //    if let Some(usr) = self.get_mut_user(usrname) {
-   //       usr.change_password(curr_pwd.as_ref(), pwd.as_ref(), verify_pwd.as_ref())?;
-   //       res = true;
-   //    }
-   //    Ok(res)
-   // }
+   /// This method is used to change user password by specified username.
+   pub fn change_user_password<T: AsRef<str>>(&mut self, usrname: T, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<bool, Error> {
+      let mut res = false;
+      if let Some(usr) = self.get_mut_user(usrname) {
+         usr.change_password(curr_pwd.as_ref(), pwd.as_ref(), verify_pwd.as_ref())?;
+         res = true;
+      }
+      Ok(res)
+   }
 
-   // pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<bool, Error> {
-   //    let mut res = false;
-   //    if let Some(_) = self.get_mut_user(usrname.as_ref()) {
-   //       User::reset_password(usrname.as_ref(), pwd.as_ref(), verify_pwd.as_ref())?;
-   //       res = true;
-   //    }
-   //    Ok(res)
-   // }
+   pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<bool, Error> {
+      let mut res = false;
+      if let Some(_) = self.get_mut_user(usrname.as_ref()) {
+         User::reset_password(usrname.as_ref(), pwd.as_ref(), verify_pwd.as_ref())?;
+         res = true;
+      }
+      Ok(res)
+   }
+
+   pub fn user_groups<T: AsRef<str>>(&self, usrname: T) -> Option<Vec<&Group>> {
+      if let Some(usr) = self.get_user(usrname) {
+         Some(self.list_groups().iter().filter(|grp| usr.groups().contains(grp.name())).map(ToOwned::to_owned).collect())
+      } else {
+         None
+      }
+   }
 
    /// This method is used to delete a user from database by specified username.
    pub fn delete_user<T: AsRef<str>>(&mut self, usrname: T) -> Result<bool, Error> {
@@ -143,14 +152,15 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new group after check for group name exists and then refresh groups database.
-   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<Option<&Group>, Error> {
+   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<bool, Error> {
+      let mut res = false;
       if !self.ls_groups.iter().any(|group| group.name().eq(gname.as_ref())) {
          Group::new(gname.clone())?;
          self.load_groups()?;
-         Ok(self.group_from_name(gname.as_ref()))
-      } else {
-         Ok(None)
-      }
+         // Ok(self.group_from_name(gname.as_ref()))
+         res = true;
+      } 
+      Ok(res)
    }
 
    /// This method is used to change group name by specified current group name and new group name.
@@ -167,15 +177,24 @@ impl UsersGroupsManager {
       }
    }
 
-   // /// This method is used to set/change list of members of the group by specified group name.
-   // pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<bool, Error> {
-   //    let mut res = false;
-   //    if let Some(group) = self.get_mut_group(gname) {
-   //       group.change_membership(ls_members)?;
-   //       res = true;
-   //    }
-   //    Ok(res)
-   // }
+   /// This method is used to set/change list of members of the group by specified group name.
+   pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<bool, Error> {
+      let mut res = false;
+      if let Some(group) = self.get_mut_group(gname) {
+         group.change_membership(ls_members)?;
+         res = true;
+      }
+      Ok(res)
+   }
+
+   /// This method is used to return a list of users of a group by specified group name.
+   pub fn group_members<T: AsRef<str>>(&self, gname: T) -> Option<Vec<&User>> {
+      if let Some(group) = self.get_group(gname) {
+         Some(self.list_users().iter().filter(|&usr| group.members().contains(usr.username())).map(ToOwned::to_owned).collect())
+      } else {
+         None
+      }
+   }
 
    /// This method is used to delete group by specified group name.
    pub fn delete_group<T: AsRef<str>>(&mut self, gname: T) -> Result<bool, Error> {
@@ -188,9 +207,9 @@ impl UsersGroupsManager {
       Ok(res)
    }
 
-   /// This method is used to return current running user.
-   pub fn current_user(&self) -> Option<&User> {
-      self.list_users().iter().find(|usr| usr.uid().eq(&self.curr_uid)).map(ToOwned::to_owned)
+   /// This method is used to return current running user UID.
+   pub fn current_uid(&self) -> u16 {
+      self.curr_uid
    }
 
    /// This method is used to return all user accounts and system accounts available on system.
@@ -200,7 +219,13 @@ impl UsersGroupsManager {
 
    /// This method is used to get current list of users account.
    pub fn list_users(&self) -> Vec<&User> {
-      self.ls_users.iter().filter(|usr| MIN_UID < usr.uid() && usr.uid() < MAX_UID).collect()
+      let mut ls_users: Vec<&User> = self.ls_users.iter().filter(|usr| MIN_UID < usr.uid() && usr.uid() < MAX_UID).collect();
+      if let Some(idx) = ls_users.iter().position(|usr| usr.uid().eq(&self.curr_uid)) {
+         if idx != 0 {
+            ls_users.swap(0, idx);
+         }
+      }
+      ls_users
    }
 
    /// This method is used to return all user-defined group accounts and system accounts available on system.
@@ -276,11 +301,19 @@ impl UsersGroupsManager {
    }
 
    fn get_mut_group<T: AsRef<str>>(&mut self, gname: T) -> Option<&mut Group> {
-      self.ls_groups.iter_mut().find(|g| g.name() == gname.as_ref()) 
+      self.ls_groups.iter_mut().find(|g| g.name().eq(gname.as_ref())) 
    }
 
    fn get_mut_user<T: AsRef<str>>(&mut self, usrname: T) -> Option<&mut User> {
-      self.ls_users.iter_mut().find(|usr| usr.username() == usrname.as_ref())
+      self.ls_users.iter_mut().find(|usr| usr.username().eq(usrname.as_ref()))
+   }
+
+   fn get_user<T: AsRef<str>>(&self, usrname: T) -> Option<&User>{
+      self.ls_users.iter().find(|usr| usr.username().eq(usrname.as_ref()))
+   }
+
+   fn get_group<T: AsRef<str>>(&self, gname: T) -> Option<&Group> {
+      self.ls_groups.iter().find(|g| g.name().eq(gname.as_ref())) 
    }
 }
 
@@ -293,9 +326,9 @@ mod test {
    fn test_users_manager() -> Result<(), Error> {
       match UsersGroupsManager::new() {
          Ok(mut usr_mn) => {
-            if let Some(_) = usr_mn.create_group("test")? {
+            if usr_mn.create_group("test")? {
                println!("successfully create test group");
-               if let Some(_) = usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
+               if usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
                   println!("successfully create test user");
                   if usr_mn.change_user_info("test", None, "users", "User Test", None, "/bin/fish", None)? {
                      println!("change info success");

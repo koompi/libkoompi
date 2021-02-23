@@ -28,11 +28,7 @@ pub struct User {
 impl User {
    /// This method is used to create a new user without creating personal group and add to ADMIN group if account type is admin.
    pub(super) fn new<T: AsRef<str>>(fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<(), Error> {
-      let mut args = vec![USER_ADD, "-c", fullname.as_ref(), "-m", "-N"];
-      if account_type == AccountType::Admin {
-         args.extend(vec!["-g", ADM_GROUP]);
-      }
-      args.push(usrname.as_ref());
+      let args = vec![USER_ADD, "-c", fullname.as_ref(), "-m", "-N", usrname.as_ref()];
       exec_cmd(PKEXEC, args)?;
       if account_type == AccountType::Admin {
          exec_cmd(GPASSWD, vec!["-a", usrname.as_ref(), ADM_GROUP])?;
@@ -194,7 +190,7 @@ impl User {
    }
 
    /// This method is return List of group name. Note: You need to call fetch_groups method first.
-   pub fn groups(&self) -> &[String] {
+   pub(super) fn groups(&self) -> &[String] {
       self.groups.as_slice()
    }
 }
