@@ -25,7 +25,7 @@ pub fn exec_cmd(cmd: &str, args: Vec<&str>) -> Result<String, Error> {
       //    Ok(stdout) => Ok(stdout),
       //    Err(err) => Err(Error::new(ErrorKind::InvalidData, err))
       // }
-      Ok(String::from_utf8_lossy(output.stdout.as_ref()).as_ref().to_owned())
+      Ok(String::from_utf8_lossy(output.stdout.as_ref()).as_ref().trim().to_owned())
    } else if let Ok(stderr) = String::from_utf8(output.stderr) {
       Err(Error::new(ErrorKind::InvalidData, stderr))
    } else {
