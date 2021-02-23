@@ -31,9 +31,11 @@ impl User {
    pub(super) fn new<T: AsRef<str>>(fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<(), Error> {
       let args = vec![USER_ADD, "-c", fullname.as_ref(), "-m", "-N", usrname.as_ref()];
       exec_cmd(PKEXEC, args)?;
+      let mut gpasswd_args = vec!["-a", usrname.as_ref(), "input", "network", "power", "storage", "audio"];
       if account_type == AccountType::Admin {
-         exec_cmd(GPASSWD, vec!["-a", usrname.as_ref(), ADM_GROUP])?;
+         gpasswd_args.push(ADM_GROUP);
       }
+      exec_cmd(GPASSWD, gpasswd_args)?;
       User::reset_password(usrname, pwd, verify_pwd)
    }
 
