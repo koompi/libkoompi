@@ -53,7 +53,7 @@ impl User {
          usrname: usrname.clone(), 
          login_shell: PathBuf::from(&login_shell.to_string()), 
          home_dir: PathBuf::from(&home_dir.to_string()), 
-         acc_type: if ls_admin.contains(&usrname.as_str()) {AccountType::Admin} else {AccountType::Normal},
+         acc_type: if ls_admin.contains(&usrname.as_str()) {AccountType::Admin} else {AccountType::User},
          ..Self::default()
       }
    }
@@ -61,7 +61,7 @@ impl User {
    /// This method is used to toggle account type of the user and return a message. 
    pub fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
       let opt = match account_type {
-         AccountType::Normal => "-d",
+         AccountType::User => "-d",
          AccountType::Admin => "-a",
       };
       exec_cmd(PKEXEC, vec![GPASSWD, opt, self.username(), ADM_GROUP])?;

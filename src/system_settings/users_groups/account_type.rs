@@ -3,21 +3,21 @@ use std::fmt::{self, Display, Formatter};
 /// Variants of User Account Type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountType {
-   Normal,
+   User,
    Admin
 }
 
 impl AccountType {
    /// List of available Account Type
    pub const ALL: [AccountType; 2] = [
-      AccountType::Normal,
+      AccountType::User,
       AccountType::Admin
    ];
 }
 
 impl Default for AccountType {
    fn default() -> AccountType {
-      AccountType::Normal
+      AccountType::User
    }
 }
 
@@ -27,8 +27,8 @@ impl Display for AccountType {
          f,
          "{}",
          match self {
-            AccountType::Normal => "Normal User",
-            AccountType::Admin => "Administrator",
+            AccountType::User => "User",
+            AccountType::Admin => "Admin",
          }
       )
    }

@@ -10,11 +10,10 @@ use std::path::Path;
 use crate::helpers::{get_list_by_sep, exec_cmd, read_lines};
 
 const PASSWD: &str = "passwd";
-const ADM_GROUP: &str = "wheel";
-const GETENT: &str = "getent";
+const GREP: &str = "grep";
 const CHSH: &str = "chsh";
-const GROUP: &str = "group";
 const ID: &str = "id";
+const ADM_GROUP: &str = "wheel";
 const USERS_DB_PATH: &str = "/etc/passwd";
 const GROUP_DB_PATH: &str = "/etc/group";
 const MIN_UID: u16 = 1000;
@@ -259,7 +258,7 @@ impl UsersGroupsManager {
    /// Refresh users database after any update.
    fn load_users(&mut self) -> Result<(), Error> {
       let allusers = read_lines(USERS_DB_PATH)?;
-      let admin_members_stdout = exec_cmd(GETENT, vec![GROUP, ADM_GROUP])?;
+      let admin_members_stdout = exec_cmd(GREP, vec![&format!("{}:", ADM_GROUP), GROUP_DB_PATH])?;
       let admin_members = &get_list_by_sep(&admin_members_stdout, ":")[3];
       let ls_admin_usrnames = get_list_by_sep(&admin_members, ",");
       self.ls_users = allusers.map(|line| if let Ok(line) = line {
@@ -328,7 +327,7 @@ mod test {
          Ok(mut usr_mn) => {
             if usr_mn.create_group("test")? {
                println!("successfully create test group");
-               if usr_mn.create_user("Test User", "test", AccountType::Normal, "123", "123")? {
+               if usr_mn.create_user("Test User", "test", AccountType::default(), "123", "123")? {
                   println!("successfully create test user");
                   if usr_mn.change_user_info("test", None, "users", "User Test", None, "/bin/fish", None)? {
                      println!("change info success");
