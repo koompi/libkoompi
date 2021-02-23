@@ -31,11 +31,14 @@ impl User {
    pub(super) fn new<T: AsRef<str>>(fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<(), Error> {
       let args = vec![USER_ADD, "-c", fullname.as_ref(), "-m", "-N", usrname.as_ref()];
       exec_cmd(PKEXEC, args)?;
-      let mut gpasswd_args = vec!["-a", usrname.as_ref(), "input", "cups"];
+      let mut gpasswd_args = vec![USER_MOD, "-a", "-G"];
+      let mut groups = vec!["input", "cups"];
       if account_type == AccountType::Admin {
-         gpasswd_args.push(ADM_GROUP);
+         groups.push(ADM_GROUP);
       }
-      exec_cmd(GPASSWD, gpasswd_args)?;
+      let concat_groups = groups.join(",");
+      gpasswd_args.extend(vec![concat_groups.as_str(), usrname.as_ref()]);
+      exec_cmd(PKEXEC, gpasswd_args)?;
       User::reset_password(usrname, pwd, verify_pwd)
    }
 
@@ -177,11 +180,12 @@ impl User {
 
    /// This method is return Fullname or Username if fullname not exist.
    pub fn fullname(&self) -> String {
-      if self.fullname.is_empty() {
-         titlecase(self.usrname.replace("_", " ").as_str())
+      let name = if self.fullname.is_empty() {
+         self.usrname.replace("_", " ")
       } else {
          self.fullname.clone()
-      }
+      };
+      titlecase(name.as_str())
    }
 
    /// This method is return Login Shell.

@@ -350,7 +350,7 @@ mod test {
             } else {
                println!("can not create group -- group name is existing -- try again with new name");
             }
-            println!("{:#?}", usr_mn); 
+            // println!("{:#?}", usr_mn); 
          },
          Err(err) => eprintln!("{:?}", err)
       }
