@@ -88,9 +88,10 @@ impl Group {
    /// This method is used to change group name after check with current name.
    pub(super) fn change_name<T: AsRef<str>>(&mut self, new_gname: T) -> Result<bool, Error> {
       let mut res = false;
-      if new_gname.as_ref() != self.gname.as_str() {
-         exec_cmd(PKEXEC, vec![GROUP_MOD, "-n", new_gname.as_ref(), self.gname.as_str()])?;
-         self.gname = new_gname.as_ref().to_string();
+      let name = formatted_to_name(new_gname.as_ref());
+      if name != self.gname {
+         exec_cmd(PKEXEC, vec![GROUP_MOD, "-n", name.as_str(), self.gname.as_str()])?;
+         self.gname = name;
          res = true;
       } 
       Ok(res)
@@ -113,11 +114,19 @@ impl Group {
    }
 
    pub fn formatted_name(&self) -> String {
-      titlecase(self.gname.replace("_", " ").as_str())
+      name_to_formatted(&self.gname)
    }
 
    /// This method is return group members.
    pub fn members(&self) -> &[String] {
       self.members.as_slice()
    }
+}
+
+fn formatted_to_name(formatted: &str) -> String {
+   formatted.to_lowercase().replace(" ", "_")
+}
+
+fn name_to_formatted(name: &str) -> String {
+   titlecase(name.replace("_", " ").as_str())
 }

@@ -5,6 +5,7 @@ use super::groups::GPASSWD;
 use super::account_type::AccountType;
 use super::super::users_groups::{ADM_GROUP, PASSWD};
 use crate::helpers::{exec_cmd, exec_spawn_cmd, get_list_by_sep, constants::PKEXEC};
+use titlecase::titlecase;
 
 const USER_ADD: &str = "useradd";
 const USER_MOD: &str = "usermod";
@@ -84,7 +85,7 @@ impl User {
          if let Ok(gid) = gname.as_ref().to_string().parse() {
             self.gid = gid;
          }
-      } if fullname.as_ref().ne(self.fullname()) {
+      } if fullname.as_ref().ne(self.fullname().as_str()) {
          args.extend(vec!["-c", fullname.as_ref()]);
          self.fullname = fullname.as_ref().to_string();
       } if let Some(usrname) = &login_name {
@@ -132,13 +133,15 @@ impl User {
    }
 
    /// This method is used to delete this user account from database.
-   pub(super) fn delete(&mut self) -> Result<(), Error> {
+   pub(super) fn delete(&mut self, delete_home_dir: bool) -> Result<(), Error> {
+      if delete_home_dir {
       // let mut args = if std::path::PathBuf::from(&self.home_dir).exists() {
       //    vec!["-r"]
       // } else {
       //    Vec::new()
       // };
       // args.extend(vec![USER_DEL, self.username()]);
+      }
       exec_cmd(PKEXEC, vec![USER_DEL, self.username()])?;
       Ok(())
    }
@@ -171,11 +174,11 @@ impl User {
    }
 
    /// This method is return Fullname or Username if fullname not exist.
-   pub fn fullname(&self) -> &String {
+   pub fn fullname(&self) -> String {
       if self.fullname.is_empty() {
-         &self.usrname
+         titlecase(self.usrname.replace("_", " ").as_str())
       } else {
-         &self.fullname
+         self.fullname.clone()
       }
    }
 

@@ -140,10 +140,10 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to delete a user from database by specified username.
-   pub fn delete_user<T: AsRef<str>>(&mut self, usrname: T) -> Result<bool, Error> {
+   pub fn delete_user<T: AsRef<str>>(&mut self, usrname: T, delete_home_dir: bool) -> Result<bool, Error> {
       let mut res = false;
       if let Some(usr) = self.get_mut_user(usrname) {
-         usr.delete()?;
+         usr.delete(delete_home_dir)?;
          self.load_users()?;
          res = true;
       }
@@ -334,7 +334,7 @@ mod test {
                   } else {
                      println!("can not change info");
                   }
-                  if usr_mn.delete_user("test")? {
+                  if usr_mn.delete_user("test", false)? {
                      println!("successfully delete test user");
                      if usr_mn.delete_group("test")? {
                         println!("successfully delete test group");
