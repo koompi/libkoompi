@@ -39,6 +39,7 @@ pub trait DeviceControl<T> {
     fn set_device_volume_by_name(&mut self, name: &str, volume: f64);
     fn increase_device_volume_by_percent(&mut self, index: u32, delta: f64);
     fn decrease_device_volume_by_percent(&mut self, index: u32, delta: f64);
+    fn get_volume(&mut self) -> Result<Vec<String>, ControllerError>;
 }
 
 pub trait AppControl<T> {
@@ -74,14 +75,16 @@ pub trait SoundCard<T> {
     fn set_card_profile_by_name(&mut self, name: &str, profiel: &str) -> Result<bool, ControllerError>;
 }
 
-pub trait SoundPort {
+pub trait SinkPort {
     fn set_sink_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError>;
     fn set_sink_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError>;
+}
+pub trait SourcePort {
     fn set_source_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError>;
     fn set_source_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError>;
 }
 
-fn volume_from_percent(volume: f64) -> f64 {
+pub fn volume_from_percent(volume: f64) -> f64 {
     (volume * 100.0) * (f64::from(Volume::NORMAL.0) / 100.0)
 }
 #[derive(Default)]
@@ -178,7 +181,7 @@ impl<'a> SoundCard<SoundCardInfo> for SinkController {
     }
 }
 
-impl SoundPort for SinkController {
+impl SinkPort for SinkController {
     fn set_sink_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError> {
         let success = Rc::new(RefCell::new(false));
         let ref_success = success.clone();
@@ -194,34 +197,6 @@ impl SoundPort for SinkController {
         Ok(result)
     }
     fn set_sink_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError> {
-        let success = Rc::new(RefCell::new(false));
-        let ref_success = success.clone();
-        let op = self.handler.introspect.set_sink_port_by_index(
-            index,
-            port_name,
-            Some(Box::new(move |res| {
-                ref_success.borrow_mut().clone_from(&res);
-            })),
-        );
-        self.handler.wait_for_operation(op)?;
-        let result = success.borrow_mut().clone();
-        Ok(result)
-    }
-    fn set_source_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError> {
-        let success = Rc::new(RefCell::new(false));
-        let ref_success = success.clone();
-        let op = self.handler.introspect.set_source_port_by_name(
-            name,
-            port_name,
-            Some(Box::new(move |res| {
-                ref_success.borrow_mut().clone_from(&res);
-            })),
-        );
-        self.handler.wait_for_operation(op)?;
-        let result = success.borrow_mut().clone();
-        Ok(result)
-    }
-    fn set_source_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError> {
         let success = Rc::new(RefCell::new(false));
         let ref_success = success.clone();
         let op = self.handler.introspect.set_sink_port_by_index(
@@ -323,6 +298,29 @@ impl DeviceControl<DeviceInfo> for SinkController {
         let op = self.handler.introspect.set_sink_volume_by_index(index, &volumes, None);
         self.handler.wait_for_operation(op).expect("error");
     }
+    fn get_volume(&mut self) -> Result<Vec<String>, ControllerError> {
+        let devices = self.list_devices();
+        let mut data_volume: Vec<String> = Vec::new();
+        match devices {
+            Ok(res_device) => {
+                for dev in res_device {
+                    let mut vol = dev.volume.get().to_vec();
+                    while vol.len() != 0 {
+                        match vol.pop() {
+                            Some(val) => {
+                                let mut human_volum = val.print().split_whitespace().collect::<String>();
+                                human_volum.retain(|c| c != '%');
+                                data_volume.push(human_volum);
+                            }
+                            None => eprintln!("Cannot pop vaolume out of vector: "),
+                        }
+                    }
+                }
+                Ok(data_volume)
+            }
+            Err(e) => Err(ControllerError::new(GetInfoError, &format!("Error: {:?}", e))),
+        }
+    }
 }
 
 impl AppControl<ApplicationInfo> for SinkController {
@@ -416,6 +414,106 @@ impl AppControl<ApplicationInfo> for SinkController {
 #[derive(Default)]
 pub struct SourceController {
     pub handler: Handler,
+}
+impl SourcePort for SourceController {
+    fn set_source_port_by_name(&mut self, name: &str, port_name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_source_port_by_name(
+            name,
+            port_name,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+    fn set_source_port_by_index(&mut self, index: u32, port_name: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_sink_port_by_index(
+            index,
+            port_name,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+}
+impl<'a> SoundCard<SoundCardInfo> for SourceController {
+    fn get_sound_card_by_index(&mut self, index: u32) -> Result<SoundCardInfo, ControllerError> {
+        let soundinfo = Rc::new(RefCell::new(Some(None)));
+        let soundinfo_ref = soundinfo.clone();
+        let op = self.handler.introspect.get_card_info_by_index(index, move |card_info: ListResult<&introspect::CardInfo>| {
+            if let ListResult::Item(item) = card_info {
+                soundinfo_ref.borrow_mut().as_mut().unwrap().replace(item.into());
+            }
+        });
+        self.handler.wait_for_operation(op)?;
+        let mut result = soundinfo.borrow_mut();
+        result.take().unwrap().ok_or(ControllerError::new(GetInfoError, "Cannot Get Sound Card"))
+    }
+
+    fn get_sound_card_by_name(&mut self, name: &str) -> Result<SoundCardInfo, ControllerError> {
+        let soundinfo = Rc::new(RefCell::new(Some(None)));
+        let soundinfo_ref = soundinfo.clone();
+        let op = self.handler.introspect.get_card_info_by_name(name, move |card_info: ListResult<&introspect::CardInfo>| {
+            if let ListResult::Item(item) = card_info {
+                soundinfo_ref.borrow_mut().as_mut().unwrap().replace(item.into());
+            }
+        });
+        self.handler.wait_for_operation(op)?;
+        let mut result = soundinfo.borrow_mut();
+        result.take().unwrap().ok_or(ControllerError::new(GetInfoError, "Cannot Get Sound Card"))
+        // Err(ControllerError::new(GetInfoError, "Sound Card Error"))
+    }
+    fn get_card_info_list(&mut self) -> Result<Vec<SoundCardInfo>, ControllerError> {
+        let soundlist = Rc::new(RefCell::new(Some(Vec::new())));
+        let soundlist_ref = soundlist.clone();
+
+        let op = self.handler.introspect.get_card_info_list(move |card_list: ListResult<&introspect::CardInfo>| {
+            if let ListResult::Item(list_item) = card_list {
+                soundlist_ref.borrow_mut().as_mut().unwrap().push(list_item.into());
+            }
+        });
+        self.handler.wait_for_operation(op)?;
+        let mut result = soundlist.borrow_mut();
+        result.take().ok_or(ControllerError::new(GetInfoError, "Error getting device list"))
+        // Err(ControllerError::new(GetInfoError, "Sound Card Error"))
+    }
+    fn set_card_profile_by_index(&mut self, index: u32, profile: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_card_profile_by_index(
+            index,
+            profile,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
+    fn set_card_profile_by_name(&mut self, name: &str, profile: &str) -> Result<bool, ControllerError> {
+        let success = Rc::new(RefCell::new(false));
+        let ref_success = success.clone();
+        let op = self.handler.introspect.set_card_profile_by_name(
+            name,
+            profile,
+            Some(Box::new(move |res| {
+                ref_success.borrow_mut().clone_from(&res);
+            })),
+        );
+        self.handler.wait_for_operation(op)?;
+        let result = success.borrow_mut().clone();
+        Ok(result)
+    }
 }
 
 impl SourceController {
@@ -522,6 +620,29 @@ impl DeviceControl<DeviceInfo> for SourceController {
         let volumes = dev_ref.volume.decrease(new_vol).unwrap();
         let op = self.handler.introspect.set_source_volume_by_index(index, &volumes, None);
         self.handler.wait_for_operation(op).expect("error");
+    }
+    fn get_volume(&mut self) -> Result<Vec<String>, ControllerError> {
+        let devices = self.list_devices();
+        let mut data_volume: Vec<String> = Vec::new();
+        match devices {
+            Ok(res_device) => {
+                for dev in res_device {
+                    let mut vol = dev.volume.get().to_vec();
+                    while vol.len() != 0 {
+                        match vol.pop() {
+                            Some(val) => {
+                                let mut human_volum = val.print().split_whitespace().collect::<String>();
+                                human_volum.retain(|c| c != '%');
+                                data_volume.push(human_volum);
+                            }
+                            None => eprintln!("Cannot pop vaolume out of vector: "),
+                        }
+                    }
+                }
+                Ok(data_volume)
+            }
+            Err(e) => Err(ControllerError::new(GetInfoError, &format!("Error: {:?}", e))),
+        }
     }
 }
 
