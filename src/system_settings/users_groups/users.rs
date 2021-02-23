@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 use super::groups::GPASSWD;
 use super::account_type::AccountType;
 use super::super::users_groups::{ADM_GROUP, PASSWD};
-use crate::helpers::{exec_cmd, exec_spawn_cmd, get_list_by_sep, constants::PKEXEC};
-use titlecase::titlecase;
+use crate::helpers::{exec_cmd, exec_spawn_cmd, get_list_by_sep, constants::PKEXEC, to_formatted_name};
 
 const USER_ADD: &str = "useradd";
 const USER_MOD: &str = "usermod";
@@ -121,7 +120,7 @@ impl User {
    }
 
    /// This method is used to change password for the user account.
-   pub fn change_password<T: AsRef<str>>(&mut self, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
+   pub(super) fn change_password<T: AsRef<str>>(&mut self, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
       exec_spawn_cmd(PASSWD, Vec::new(), Some(&vec![curr_pwd.as_ref(), pwd.as_ref(), verify_pwd.as_ref()].join("\n")))?;
       Ok(())
    }
@@ -132,7 +131,7 @@ impl User {
    }
 
    /// This method is used to reset other users account's password.
-   pub fn reset_password<T: AsRef<str>>(usrname: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
+   pub(super) fn reset_password<T: AsRef<str>>(usrname: T, pwd: T, verify_pwd: T) -> Result<(), Error> {
       exec_spawn_cmd(PKEXEC, vec![PASSWD, usrname.as_ref()], Some(&vec![pwd.as_ref(), verify_pwd.as_ref()].join("\n")))?;
       Ok(())
    }
@@ -181,11 +180,11 @@ impl User {
    /// This method is return Fullname or Username if fullname not exist.
    pub fn fullname(&self) -> String {
       let name = if self.fullname.is_empty() {
-         self.usrname.replace("_", " ")
+         &self.usrname
       } else {
-         self.fullname.clone()
+         &self.fullname
       };
-      titlecase(name.as_str())
+      to_formatted_name(name)
    }
 
    /// This method is return Login Shell.

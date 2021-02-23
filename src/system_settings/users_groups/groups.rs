@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::io::Error;
-use crate::helpers::{exec_cmd, get_list_by_sep, constants::PKEXEC};
-use titlecase::titlecase;
+use crate::helpers::{exec_cmd, get_list_by_sep, constants::PKEXEC, to_account_name, to_formatted_name};
 
 pub(super) const GPASSWD: &str = "gpasswd";
 const GROUP_ADD: &str = "groupadd";
@@ -52,9 +51,10 @@ impl Group {
    /// This method is used to add new user to the group after check current members exists.
    pub fn add_user<T: AsRef<str>>(&mut self, usrname: T) -> Result<bool, Error> {
       let mut res = false;
-      if !self.members.contains(&usrname.as_ref().to_string()) {
+      let usrname = to_account_name(usrname);
+      if !self.members.contains(&usrname) {
          exec_cmd(PKEXEC, vec![GPASSWD, "-a", usrname.as_ref(), &self.gname])?;
-         self.members.push(usrname.as_ref().to_string());
+         self.members.push(usrname);
          res = true;
       }
       Ok(res)
@@ -63,9 +63,10 @@ impl Group {
    /// This method is used to remove user from the group after check current members exists.
    pub fn remove_user<T: AsRef<str>>(&mut self, usrname: T) -> Result<bool, Error> {
       let mut res = false;
-      if self.members.contains(&usrname.as_ref().to_string()) {
+      let usrname = to_account_name(usrname);
+      if self.members.contains(&usrname) {
          exec_cmd(PKEXEC, vec![GPASSWD, "-d", usrname.as_ref(), &self.gname])?;
-         let idx = self.members.iter().position(|m| m == &usrname.as_ref().to_string());
+         let idx = self.members.iter().position(|m| m.eq(&usrname) );
          if let Some(idx) = idx {
             self.members.remove(idx);
             res = true;
@@ -88,10 +89,10 @@ impl Group {
    /// This method is used to change group name after check with current name.
    pub(super) fn change_name<T: AsRef<str>>(&mut self, new_gname: T) -> Result<bool, Error> {
       let mut res = false;
-      let name = formatted_to_name(new_gname.as_ref());
+      let name = new_gname.as_ref();
       if name != self.gname {
-         exec_cmd(PKEXEC, vec![GROUP_MOD, "-n", name.as_str(), self.gname.as_str()])?;
-         self.gname = name;
+         exec_cmd(PKEXEC, vec![GROUP_MOD, "-n", name, self.gname.as_str()])?;
+         self.gname = name.to_string();
          res = true;
       } 
       Ok(res)
@@ -114,19 +115,11 @@ impl Group {
    }
 
    pub fn formatted_name(&self) -> String {
-      name_to_formatted(&self.gname)
+      to_formatted_name(&self.gname)
    }
 
    /// This method is return group members.
    pub fn members(&self) -> &[String] {
       self.members.as_slice()
    }
-}
-
-fn formatted_to_name(formatted: &str) -> String {
-   formatted.to_lowercase().replace(" ", "_")
-}
-
-fn name_to_formatted(name: &str) -> String {
-   titlecase(name.replace("_", " ").as_str())
 }
