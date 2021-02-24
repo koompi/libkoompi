@@ -17,7 +17,9 @@ const ID: &str = "id";
 const ADM_GROUP: &str = "wheel";
 const USERS_DB_PATH: &str = "/etc/passwd";
 const GROUP_DB_PATH: &str = "/etc/group";
+/// Minimum UID/GID for user and group
 pub const MIN_UID: u16 = 1000;
+/// Maximum UID/GID for user and group
 pub const MAX_UID: u16 = 2000;
 
 /// Structure of Users & Groups Manager
@@ -91,23 +93,7 @@ impl UsersGroupsManager {
          } else {
             (None, None, None)
          };
-         let grp_id = match group {
-            Some(group) => {
-               Some(group.gid().to_string())
-            },
-            None => {
-               match gname.as_ref().to_string().parse() {
-                  Ok(gid) => {
-                     if MIN_UID < gid && gid < MAX_UID && ls_groups.iter().any(|grp| grp.gid().eq(&gid)) {
-                        Some(gid.to_string())
-                     } else {
-                        None
-                     } 
-                  },
-                  Err(_) => None
-               }
-            }
-         };
+         let grp_id = group.map(|grp| grp.gid().to_string());
          let login_shell = if login_shells.iter().any(|sh| login_shell.as_ref().eq(Path::new(sh))) {Some(login_shell)} else {None};
          usr.change_info(uid, grp_id, fullname.as_ref().to_string(), login_name, login_shell, home_dir)
       } else {
@@ -177,7 +163,7 @@ impl UsersGroupsManager {
       let new_name = to_account_name(new_name);
       let ls_groups = self.ls_groups.clone();
       if let Some(group) = self.get_mut_group(&gname){
-        if ls_groups.iter().any(|grp| grp.name().eq(&new_name)) {
+        if !ls_groups.iter().any(|grp| grp.name().eq(&new_name)) {
             group.change_name(new_name)
          } else {
             Ok(false)
