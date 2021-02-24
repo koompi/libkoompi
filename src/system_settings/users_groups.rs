@@ -17,8 +17,10 @@ const ID: &str = "id";
 const ADM_GROUP: &str = "wheel";
 const USERS_DB_PATH: &str = "/etc/passwd";
 const GROUP_DB_PATH: &str = "/etc/group";
-const MIN_UID: u16 = 1000;
-const MAX_UID: u16 = 2000;
+/// Minimum UID/GID for user and group
+pub const MIN_UID: u16 = 1000;
+/// Maximum UID/GID for user and group
+pub const MAX_UID: u16 = 2000;
 
 /// Structure of Users & Groups Manager
 #[derive(Debug, Clone, Default)]
@@ -64,15 +66,18 @@ impl UsersGroupsManager {
    // }
 
    /// This method is used to change user account information by specified username.
-   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: Option<T>, gname: T, fullname: T, login_name: Option<T>, login_shell: P, home_dir: Option<P>) -> Result<bool, Error> {
+   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<bool, Error> {
       let ls_users = self.ls_users.clone();
       let ls_groups = self.ls_groups.clone();
       let login_shells = self.login_shells.clone();
+      let curr_uid = self.curr_uid;
       let usrname = to_account_name(usrname);
-      let gname = to_account_name(gname);
+      let group = ls_groups.iter().find(|grp| grp.name().eq(gname.as_ref())).map(ToOwned::to_owned);
+      let login_name = to_account_name(login_name);
+
       if let Some(usr) = self.get_mut_user(&usrname) {
-         let usr_id = match uid {
-            Some(uid) => match uid.as_ref().to_string().parse::<u16>() {
+         let (uid, login_name, home_dir) = if curr_uid.ne(&usr.uid()) {
+            let uid = match uid.as_ref().to_string().parse::<u16>() {
                Ok(uid) => {
                   if MIN_UID < uid && uid < MAX_UID && !ls_users.iter().any(|usr| usr.uid().eq(&uid)) {
                      Some(uid.to_string())
@@ -81,38 +86,16 @@ impl UsersGroupsManager {
                   }
                },
                Err(_) => None
-            },
-            None => None
+            };
+            let login_name = if !ls_users.iter().any(|usr| usr.username().eq(&login_name)) {Some(login_name)} else {None};
+            let home_dir = if !ls_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir)} else {None};
+            (uid, login_name, home_dir)
+         } else {
+            (None, None, None)
          };
-         let grp_name = match gname.parse::<u16>() {
-            Ok(gid) => {
-               if MIN_UID < gid && gid < MAX_UID && ls_groups.iter().any(|grp| grp.gid().eq(&gid)) {
-                  Some(gid.to_string())
-               } else {
-                  None
-               } 
-            },
-            Err(_) => {
-               if ls_groups.iter().any(|grp| grp.name().eq(&gname)) {
-                  Some(gname)
-               } else {
-                  None
-               }
-            }
-         };
-         let usrname = match login_name {
-            Some(login_name) => {
-               let login_name = to_account_name(login_name);
-               if !ls_users.iter().any(|usr| usr.username().eq(&login_name)) {Some(login_name)} else {None}
-            },
-            None => None
-         };
-         let home_dir = match home_dir {
-            Some(home_dir) => if !ls_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir)} else {None},
-            None => None
-         };
+         let grp_id = group.map(|grp| grp.gid().to_string());
          let login_shell = if login_shells.iter().any(|sh| login_shell.as_ref().eq(Path::new(sh))) {Some(login_shell)} else {None};
-         usr.change_info(usr_id, grp_name, fullname.as_ref().to_string(), usrname, login_shell, home_dir)
+         usr.change_info(uid, grp_id, fullname.as_ref().to_string(), login_name, login_shell, home_dir)
       } else {
          Ok(false)
       }
@@ -180,7 +163,7 @@ impl UsersGroupsManager {
       let new_name = to_account_name(new_name);
       let ls_groups = self.ls_groups.clone();
       if let Some(group) = self.get_mut_group(&gname){
-        if ls_groups.iter().any(|grp| grp.name().eq(&new_name)) {
+        if !ls_groups.iter().any(|grp| grp.name().eq(&new_name)) {
             group.change_name(new_name)
          } else {
             Ok(false)
@@ -347,11 +330,6 @@ mod test {
                println!("successfully create test group");
                if usr_mn.create_user("Test User", "test", AccountType::default(), "123", "123")? {
                   println!("successfully create test user");
-                  if usr_mn.change_user_info("test", None, "users", "User Test", None, "/bin/fish", None)? {
-                     println!("change info success");
-                  } else {
-                     println!("can not change info");
-                  }
                   if usr_mn.delete_user("test", false)? {
                      println!("successfully delete test user");
                      if usr_mn.delete_group("test")? {

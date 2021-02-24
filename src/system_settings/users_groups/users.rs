@@ -75,45 +75,40 @@ impl User {
    }
 
    /// This method is used to change user account information except account typpe and password.
-   pub(super) fn change_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, uid: Option<T>, gname: Option<T>, fullname: T, login_name: Option<T>, login_shell: Option<P>, home_dir: Option<P>) -> Result<bool, Error> {
+   pub(super) fn change_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, uid: Option<T>, gid: Option<T>, fullname: T, login_name: Option<T>, login_shell: Option<P>, home_dir: Option<P>) -> Result<bool, Error> {
       let mut args = Vec::new();
+      let usrname = self.usrname.clone();
       if let Some(uid) = &uid {
          if let Ok(uid_u16) = uid.as_ref().to_string().parse() { 
-            if self.uid.ne(&uid_u16) {
-               args.extend(vec!["-u", uid.as_ref()]);
-               self.uid = uid_u16;
-            }
+            args.extend(vec!["-u", uid.as_ref()]);
+            self.uid = uid_u16;
          } 
-      } if let Some(gname) = &gname {
-         args.extend(vec!["-g", gname.as_ref()]);
-         if let Ok(gid) = gname.as_ref().to_string().parse() {
+      } if let Some(gid) = &gid {
+         args.extend(vec!["-g", gid.as_ref()]);
+         if let Ok(gid) = gid.as_ref().to_string().parse() {
             self.gid = gid;
          }
       } if fullname.as_ref().ne(self.fullname().as_str()) {
          args.extend(vec!["-c", fullname.as_ref()]);
          self.fullname = fullname.as_ref().to_string();
-      } if let Some(usrname) = &login_name {
-         if usrname.as_ref().ne(&self.usrname) {
-            args.extend(vec!["-l", usrname.as_ref()]);
-            self.usrname = usrname.as_ref().to_string();
-         }
+      } if let Some(login_name) = &login_name {
+         args.extend(vec!["-l", login_name.as_ref()]);
+         self.usrname = login_name.as_ref().to_string();
       } if let Some(login_shell) = &login_shell {
          if login_shell.as_ref().ne(&self.login_shell) {
             args.extend(vec!["-s", login_shell.as_ref().to_str().unwrap()]);
             self.login_shell = login_shell.as_ref().into();
          } 
       } if let Some(home_dir) = &home_dir {
-         if home_dir.as_ref().ne(&self.home_dir) {
-            args.extend(vec!["-m", "-d", home_dir.as_ref().to_str().unwrap()]);
-            self.home_dir = home_dir.as_ref().into();
-         } 
+         args.extend(vec!["-m", "-d", home_dir.as_ref().to_str().unwrap()]);
+         self.home_dir = home_dir.as_ref().into();
       }
 
       if args.is_empty() {
          Ok(false)
       } else {
          args.insert(0, USER_MOD);
-         args.push(self.username());
+         args.push(usrname.as_str());
          exec_cmd(PKEXEC, args)?;
          Ok(true)
       }
