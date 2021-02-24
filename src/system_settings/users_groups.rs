@@ -74,7 +74,7 @@ impl UsersGroupsManager {
       let login_name = to_account_name(login_name);
 
       if let Some(usr) = self.get_mut_user(&usrname) {
-         let (uid, usrname, home_dir) = if curr_uid.ne(&usr.uid()) {
+         let (uid, login_name, home_dir) = if curr_uid.ne(&usr.uid()) {
             let uid = match uid.as_ref().to_string().parse::<u16>() {
                Ok(uid) => {
                   if MIN_UID < uid && uid < MAX_UID && !ls_users.iter().any(|usr| usr.uid().eq(&uid)) {
@@ -85,9 +85,9 @@ impl UsersGroupsManager {
                },
                Err(_) => None
             };
-            let usrname = if !ls_users.iter().any(|usr| usr.username().eq(&login_name)) {Some(login_name)} else {None};
+            let login_name = if !ls_users.iter().any(|usr| usr.username().eq(&login_name)) {Some(login_name)} else {None};
             let home_dir = if !ls_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir)} else {None};
-            (uid, usrname, home_dir)
+            (uid, login_name, home_dir)
          } else {
             (None, None, None)
          };
@@ -109,7 +109,7 @@ impl UsersGroupsManager {
             }
          };
          let login_shell = if login_shells.iter().any(|sh| login_shell.as_ref().eq(Path::new(sh))) {Some(login_shell)} else {None};
-         usr.change_info(uid, grp_id, fullname.as_ref().to_string(), usrname, login_shell, home_dir)
+         usr.change_info(uid, grp_id, fullname.as_ref().to_string(), login_name, login_shell, home_dir)
       } else {
          Ok(false)
       }
