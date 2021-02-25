@@ -26,7 +26,9 @@ pub const MAX_UID: u16 = 2000;
 #[derive(Debug, Clone, Default)]
 pub struct UsersGroupsManager {
    curr_uid: u16,
+   ls_all_users: Vec<User>,
    ls_users: Vec<User>,
+   ls_all_groups: Vec<Group>,
    ls_groups: Vec<Group>,
    login_shells: Vec<String>,
 }
@@ -47,7 +49,7 @@ impl UsersGroupsManager {
    pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<bool, Error> {
       let mut res = false;
       let usrname = to_account_name(usrname);
-      if !self.ls_users.iter().any(|user| user.username().eq(&usrname)) {
+      if !self.ls_all_users.iter().any(|user| user.username().eq(&usrname)) {
          User::new(fullname.as_ref(), usrname.as_str(), account_type, pwd.as_ref(), verify_pwd.as_ref())?;
          self.load_users()?;
          res = true;
@@ -67,19 +69,19 @@ impl UsersGroupsManager {
 
    /// This method is used to change user account information by specified username.
    pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<bool, Error> {
-      let ls_users = self.ls_users.clone();
-      let ls_groups = self.ls_groups.clone();
+      let ls_all_users = self.ls_all_users.clone();
+      let ls_all_groups = self.ls_all_groups.clone();
       let login_shells = self.login_shells.clone();
       let curr_uid = self.curr_uid;
       let usrname = to_account_name(usrname);
-      let group = ls_groups.iter().find(|grp| grp.name().eq(gname.as_ref())).map(ToOwned::to_owned);
+      let group = ls_all_groups.iter().find(|grp| grp.name().eq(gname.as_ref())).map(ToOwned::to_owned);
       let login_name = to_account_name(login_name);
 
       if let Some(usr) = self.get_mut_user(&usrname) {
          let (uid, login_name, home_dir) = if curr_uid.ne(&usr.uid()) {
             let uid = match uid.as_ref().to_string().parse::<u16>() {
                Ok(uid) => {
-                  if MIN_UID < uid && uid < MAX_UID && !ls_users.iter().any(|usr| usr.uid().eq(&uid)) {
+                  if MIN_UID < uid && uid < MAX_UID && !ls_all_users.iter().any(|usr| usr.uid().eq(&uid)) {
                      Some(uid.to_string())
                   } else {
                      None
@@ -87,8 +89,8 @@ impl UsersGroupsManager {
                },
                Err(_) => None
             };
-            let login_name = if !ls_users.iter().any(|usr| usr.username().eq(&login_name)) {Some(login_name)} else {None};
-            let home_dir = if !ls_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir)} else {None};
+            let login_name = if !ls_all_users.iter().any(|usr| usr.username().eq(&login_name)) {Some(login_name)} else {None};
+            let home_dir = if !ls_all_users.iter().any(|usr| usr.home_dir().eq(home_dir.as_ref())) {Some(home_dir)} else {None};
             (uid, login_name, home_dir)
          } else {
             (None, None, None)
@@ -127,7 +129,7 @@ impl UsersGroupsManager {
    pub fn user_groups<T: AsRef<str>>(&self, usrname: T) -> Option<Vec<&Group>> {
       let usrname = to_account_name(usrname);
       if let Some(usr) = self.get_user(&usrname) {
-         Some(self.list_groups().iter().filter(|grp| usr.groups().contains(grp.name())).map(ToOwned::to_owned).collect())
+         Some(self.list_groups().iter().filter(|grp| usr.groups().contains(grp.name())).collect())
       } else {
          None
       }
@@ -149,7 +151,7 @@ impl UsersGroupsManager {
    pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<bool, Error> {
       let mut res = false;
       let gname = to_account_name(gname);
-      if !self.ls_groups.iter().any(|group| group.name().eq(&gname)) {
+      if !self.ls_all_groups.iter().any(|group| group.name().eq(&gname)) {
          Group::new(gname)?;
          self.load_groups()?;
          res = true;
@@ -161,9 +163,9 @@ impl UsersGroupsManager {
    pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<bool, Error> {
       let gname = to_account_name(gname);
       let new_name = to_account_name(new_name);
-      let ls_groups = self.ls_groups.clone();
+      let ls_all_groups = self.ls_all_groups.clone();
       if let Some(group) = self.get_mut_group(&gname){
-        if !ls_groups.iter().any(|grp| grp.name().eq(&new_name)) {
+        if !ls_all_groups.iter().any(|grp| grp.name().eq(&new_name)) {
             group.change_name(new_name)
          } else {
             Ok(false)
@@ -188,7 +190,7 @@ impl UsersGroupsManager {
    pub fn group_members<T: AsRef<str>>(&self, gname: T) -> Option<Vec<&User>> {
       let gname = to_account_name(gname);
       if let Some(group) = self.get_group(&gname) {
-         Some(self.list_users().iter().filter(|&usr| group.members().contains(usr.username())).map(ToOwned::to_owned).collect())
+         Some(self.list_users().iter().filter(|&usr| group.members().contains(usr.username())).collect())
       } else {
          None
       }
@@ -213,39 +215,32 @@ impl UsersGroupsManager {
 
    /// This method is used to return all user accounts and system accounts available on system.
    pub fn all_users(&self) -> &[User] {
-      self.ls_users.as_slice()
+      self.ls_all_users.as_slice()
    }
 
    /// This method is used to get current list of users account.
-   pub fn list_users(&self) -> Vec<&User> {
-      let mut ls_users: Vec<&User> = self.ls_users.iter().filter(|usr| MIN_UID < usr.uid() && usr.uid() < MAX_UID).collect();
-      if let Some(idx) = ls_users.iter().position(|usr| usr.uid().eq(&self.curr_uid)) {
-         if idx != 0 {
-            ls_users.swap(0, idx);
-         }
-      }
-      ls_users
+   pub fn list_users(&self) -> &[User] {
+      self.ls_users.as_slice()
    }
 
    /// This method is used to return all user-defined group accounts and system accounts available on system.
    pub fn all_groups(&self) -> &[Group] {
-      self.ls_groups.as_slice()
+      self.ls_all_groups.as_slice()
    }
 
    /// This method is used to get current list of groups account.
-   pub fn list_groups(&self) -> Vec<&Group> {
-      let ls_users_gid: HashSet<u16> = self.list_users().iter().map(|usr| usr.gid()).collect();
-      self.ls_groups.iter().filter(|grp| MIN_UID < grp.gid() && grp.gid() < MAX_UID).filter(|grp| !ls_users_gid.contains(&grp.gid())).collect()
+   pub fn list_groups(&self) -> &[Group] {
+      self.ls_groups.as_slice()
    }
 
    /// This method is used to return an User instance if given username is existing in database and user-defined user account.
    pub fn user_from_name<T: AsRef<str>>(&self, usrname: T) -> Option<&User> {
-      self.list_users().iter().find(|usr| usr.username().eq(usrname.as_ref())).map(ToOwned::to_owned)
+      self.list_users().iter().find(|usr| usr.username().eq(usrname.as_ref()))
    }
 
    /// This method is used to return an Group instance if given group name is existing in database and user-defined group account.
    pub fn group_from_name<T: AsRef<str>>(&self, grpname: T) -> Option<&Group> {
-      self.list_groups().iter().find(|grp| grp.name().eq(grpname.as_ref())).map(ToOwned::to_owned)
+      self.list_groups().iter().find(|grp| grp.name().eq(grpname.as_ref()))
    }
 
    /// This method is used to list all available Login Shells.
@@ -262,22 +257,33 @@ impl UsersGroupsManager {
       let admin_members_stdout = exec_cmd(GREP, vec![&format!("{}:", ADM_GROUP), GROUP_DB_PATH])?;
       let admin_members = &get_list_by_sep(&admin_members_stdout, ":")[3];
       let ls_admin_usrnames = get_list_by_sep(&admin_members, ",");
-      self.ls_users = allusers.map(|line| if let Ok(line) = line {
+      self.ls_all_users = allusers.map(|line| if let Ok(line) = line {
          Some(User::from_vec(get_list_by_sep(&line, ":").as_ref(), ls_admin_usrnames.iter().map(AsRef::as_ref).collect()))
       } else {
          None
       }).filter_map(|usr| usr).collect();
+
+      let mut ls_users: Vec<User> = self.ls_all_users.iter().filter(|usr| MIN_UID < usr.uid() && usr.uid() < MAX_UID).map(ToOwned::to_owned).collect();
+      if let Some(idx) = ls_users.iter().position(|usr| usr.uid().eq(&self.curr_uid)) {
+         if idx != 0 {
+            ls_users.swap(0, idx);
+         }
+      }
+      self.ls_users = ls_users;
       Ok(())
    }
 
    /// Refresh groups database after any update.
    fn load_groups(&mut self) -> Result<(), Error> {
       let allgroups = read_lines(GROUP_DB_PATH)?;
-      self.ls_groups = allgroups.map(|line| if let Ok(line) = line {
+      self.ls_all_groups = allgroups.map(|line| if let Ok(line) = line {
          Some(Group::from_vec(get_list_by_sep(&line, ":").as_ref()))
       } else {
          None
       }).filter_map(|grp| grp).collect();
+
+      let ls_users_gid: HashSet<u16> = self.list_users().iter().map(|usr| usr.gid()).collect();
+      self.ls_groups = self.ls_all_groups.iter().filter(|grp| MIN_UID < grp.gid() && grp.gid() < MAX_UID).filter(|grp| !ls_users_gid.contains(&grp.gid())).map(ToOwned::to_owned).collect();
       Ok(())
    }
 
@@ -301,19 +307,19 @@ impl UsersGroupsManager {
    }
 
    fn get_mut_group<T: AsRef<str>>(&mut self, gname: T) -> Option<&mut Group> {
-      self.ls_groups.iter_mut().find(|g| g.name().eq(gname.as_ref())) 
+      self.ls_all_groups.iter_mut().find(|g| g.name().eq(gname.as_ref())) 
    }
 
    fn get_mut_user<T: AsRef<str>>(&mut self, usrname: T) -> Option<&mut User> {
-      self.ls_users.iter_mut().find(|usr| usr.username().eq(usrname.as_ref()))
+      self.ls_all_users.iter_mut().find(|usr| usr.username().eq(usrname.as_ref()))
    }
 
    fn get_user<T: AsRef<str>>(&self, usrname: T) -> Option<&User>{
-      self.ls_users.iter().find(|usr| usr.username().eq(usrname.as_ref()))
+      self.ls_all_users.iter().find(|usr| usr.username().eq(usrname.as_ref()))
    }
 
    fn get_group<T: AsRef<str>>(&self, gname: T) -> Option<&Group> {
-      self.ls_groups.iter().find(|g| g.name().eq(gname.as_ref())) 
+      self.ls_all_groups.iter().find(|g| g.name().eq(gname.as_ref())) 
    }
 }
 
