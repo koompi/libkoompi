@@ -10,6 +10,7 @@ const USER_ADD: &str = "useradd";
 const USER_MOD: &str = "usermod";
 const USER_DEL: &str = "userdel";
 const GROUPS: &str = "groups";
+const PROFILE_ROOT_PATH: &str = "/var/lib/AccountsService/icons";
 
 /// Structure of User Account
 #[derive(Debug, Clone, Default)]
@@ -195,5 +196,10 @@ impl User {
    /// This method is return List of group name. Note: You need to call fetch_groups method first.
    pub fn groups(&self) -> &[String] {
       self.groups.as_slice()
+   }
+
+   /// This method is return profile picture path.
+   pub fn profile_path(&self) -> PathBuf {
+      PathBuf::from(PROFILE_ROOT_PATH).join(&self.usrname)
    }
 }
