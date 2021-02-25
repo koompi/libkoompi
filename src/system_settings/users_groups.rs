@@ -58,17 +58,17 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to change user account type by specified username and account type.
-   pub fn change_user_type<T: AsRef<str>>(&mut self, usrname: T, account_type: AccountType) -> Result<Option<&User>, Error> {
+   pub fn change_user_type<T: AsRef<str>>(&mut self, usrname: T, account_type: AccountType) -> Result<Option<&mut User>, Error> {
       if let Some(usr) = self.get_mut_user(&usrname) {
          usr.change_account_type(account_type)?;
-         Ok(self.user_from_name(usrname))
+         Ok(Some(usr))
       } else {
          Ok(None)
       }
    }
 
    /// This method is used to change user account information by specified username.
-   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<Option<&User>, Error> {
+   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<Option<&mut User>, Error> {
       let ls_all_users = self.ls_all_users.clone();
       let ls_all_groups = self.ls_all_groups.clone();
       let login_shells = self.login_shells.clone();
@@ -98,7 +98,7 @@ impl UsersGroupsManager {
          let grp_id = group.map(|grp| grp.gid().to_string());
          let login_shell = if login_shells.iter().any(|sh| login_shell.as_ref().eq(Path::new(sh))) {Some(login_shell)} else {None};
          if usr.change_info(uid, grp_id, fullname.as_ref().to_string(), login_name, login_shell, home_dir)? {
-            Ok(self.user_from_name(usrname))
+            Ok(Some(usr))
          } else {
             Ok(None)
          }
@@ -108,22 +108,22 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to change user password by specified username.
-   pub fn change_user_password<T: AsRef<str>>(&mut self, usrname: T, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
+   pub fn change_user_password<T: AsRef<str>>(&mut self, usrname: T, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<Option<&mut User>, Error> {
       let usrname = to_account_name(usrname);
       if let Some(usr) = self.get_mut_user(&usrname) {
          usr.change_password(curr_pwd.as_ref(), pwd.as_ref(), verify_pwd.as_ref())?;
-         Ok(self.user_from_name(usrname))
+         Ok(Some(usr))
       } else {
          Ok(None)
       }
    }
 
    /// This method is used to reset user password by specified username and password.
-   pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
+   pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<Option<&mut User>, Error> {
       let usrname = to_account_name(usrname);
-      if let Some(_) = self.get_mut_user(&usrname) {
+      if let Some(usr) = self.get_mut_user(&usrname) {
          User::reset_password(usrname.as_str(), pwd.as_ref(), verify_pwd.as_ref())?;
-         Ok(self.user_from_name(usrname))
+         Ok(Some(usr))
       } else {
          Ok(None)
       }
@@ -164,14 +164,14 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to change group name by specified current group name and new group name.
-   pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<Option<&Group>, Error> {
+   pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<Option<&mut Group>, Error> {
       let gname = to_account_name(gname);
       let new_name = to_account_name(new_name);
       let ls_all_groups = self.ls_all_groups.clone();
       if let Some(group) = self.get_mut_group(&gname){
          if !ls_all_groups.iter().any(|grp| grp.name().eq(&new_name)) {
             if group.change_name(new_name)? {
-               Ok(self.group_from_name(gname))
+               Ok(Some(group))
             } else {
                Ok(None)
             }
@@ -184,11 +184,11 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to set/change list of members of the group by specified group name.
-   pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<Option<&Group>, Error> {
+   pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<Option<&mut Group>, Error> {
       let gname = to_account_name(gname);
       if let Some(group) = self.get_mut_group(&gname) {
          group.change_membership(ls_members)?;
-         Ok(self.group_from_name(gname))
+         Ok(Some(group))
       } else {
          Ok(None)
       }
