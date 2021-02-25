@@ -307,19 +307,19 @@ impl UsersGroupsManager {
    }
 
    fn get_mut_group<T: AsRef<str>>(&mut self, gname: T) -> Option<&mut Group> {
-      self.ls_all_groups.iter_mut().find(|g| g.name().eq(gname.as_ref())) 
+      self.ls_groups.iter_mut().find(|g| g.name().eq(gname.as_ref())) 
    }
 
    fn get_mut_user<T: AsRef<str>>(&mut self, usrname: T) -> Option<&mut User> {
-      self.ls_all_users.iter_mut().find(|usr| usr.username().eq(usrname.as_ref()))
+      self.ls_users.iter_mut().find(|usr| usr.username().eq(usrname.as_ref()))
    }
 
    fn get_user<T: AsRef<str>>(&self, usrname: T) -> Option<&User>{
-      self.ls_all_users.iter().find(|usr| usr.username().eq(usrname.as_ref()))
+      self.ls_users.iter().find(|usr| usr.username().eq(usrname.as_ref()))
    }
 
    fn get_group<T: AsRef<str>>(&self, gname: T) -> Option<&Group> {
-      self.ls_all_groups.iter().find(|g| g.name().eq(gname.as_ref())) 
+      self.ls_groups.iter().find(|g| g.name().eq(gname.as_ref())) 
    }
 }
 
