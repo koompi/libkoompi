@@ -46,29 +46,29 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new user after check for username exists and then refresh users database.
-   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn create_user<T: AsRef<str> + Clone>(&mut self, fullname: T, usrname: T, account_type: AccountType, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
       let usrname = to_account_name(usrname);
       if !self.ls_all_users.iter().any(|user| user.username().eq(&usrname)) {
          User::new(fullname.as_ref(), usrname.as_str(), account_type, pwd.as_ref(), verify_pwd.as_ref())?;
          self.load_users()?;
-         res = true;
-      } 
-      Ok(res)
+         Ok(self.user_from_name(usrname))
+      } else {
+         Ok(None)
+      }
    }
 
    /// This method is used to change user account type by specified username and account type.
-   pub fn change_user_type<T: AsRef<str>>(&mut self, usrname: T, account_type: AccountType) -> Result<bool, Error> {
-      let mut res = false;
-      if let Some(usr) = self.get_mut_user(usrname) {
+   pub fn change_user_type<T: AsRef<str>>(&mut self, usrname: T, account_type: AccountType) -> Result<Option<&User>, Error> {
+      if let Some(usr) = self.get_mut_user(&usrname) {
          usr.change_account_type(account_type)?;
-         res = true;
+         Ok(self.user_from_name(usrname))
+      } else {
+         Ok(None)
       }
-      Ok(res)
    }
 
    /// This method is used to change user account information by specified username.
-   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<bool, Error> {
+   pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<Option<&User>, Error> {
       let ls_all_users = self.ls_all_users.clone();
       let ls_all_groups = self.ls_all_groups.clone();
       let login_shells = self.login_shells.clone();
@@ -97,32 +97,36 @@ impl UsersGroupsManager {
          };
          let grp_id = group.map(|grp| grp.gid().to_string());
          let login_shell = if login_shells.iter().any(|sh| login_shell.as_ref().eq(Path::new(sh))) {Some(login_shell)} else {None};
-         usr.change_info(uid, grp_id, fullname.as_ref().to_string(), login_name, login_shell, home_dir)
+         if usr.change_info(uid, grp_id, fullname.as_ref().to_string(), login_name, login_shell, home_dir)? {
+            Ok(self.user_from_name(usrname))
+         } else {
+            Ok(None)
+         }
       } else {
-         Ok(false)
+         Ok(None)
       }
    }
 
    /// This method is used to change user password by specified username.
-   pub fn change_user_password<T: AsRef<str>>(&mut self, usrname: T, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn change_user_password<T: AsRef<str>>(&mut self, usrname: T, curr_pwd: T, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
       let usrname = to_account_name(usrname);
       if let Some(usr) = self.get_mut_user(&usrname) {
          usr.change_password(curr_pwd.as_ref(), pwd.as_ref(), verify_pwd.as_ref())?;
-         res = true;
+         Ok(self.user_from_name(usrname))
+      } else {
+         Ok(None)
       }
-      Ok(res)
    }
 
    /// This method is used to reset user password by specified username and password.
-   pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<Option<&User>, Error> {
       let usrname = to_account_name(usrname);
       if let Some(_) = self.get_mut_user(&usrname) {
          User::reset_password(usrname.as_str(), pwd.as_ref(), verify_pwd.as_ref())?;
-         res = true;
+         Ok(self.user_from_name(usrname))
+      } else {
+         Ok(None)
       }
-      Ok(res)
    }
 
    /// This method is used to return list of groups belongs to the user by specified username, or return None if not found.
@@ -148,42 +152,46 @@ impl UsersGroupsManager {
    }
 
    /// This method is used to create a new group after check for group name exists and then refresh groups database.
-   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn create_group<T: AsRef<str> + Clone>(&mut self, gname: T) -> Result<Option<&Group>, Error> {
       let gname = to_account_name(gname);
       if !self.ls_all_groups.iter().any(|group| group.name().eq(&gname)) {
-         Group::new(gname)?;
+         Group::new(&gname)?;
          self.load_groups()?;
-         res = true;
-      } 
-      Ok(res)
+         Ok(self.group_from_name(gname))
+      } else {
+         Ok(None)
+      }
    }
 
    /// This method is used to change group name by specified current group name and new group name.
-   pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<bool, Error> {
+   pub fn change_group_name<T: AsRef<str>>(&mut self, gname: T, new_name: T) -> Result<Option<&Group>, Error> {
       let gname = to_account_name(gname);
       let new_name = to_account_name(new_name);
       let ls_all_groups = self.ls_all_groups.clone();
       if let Some(group) = self.get_mut_group(&gname){
-        if !ls_all_groups.iter().any(|grp| grp.name().eq(&new_name)) {
-            group.change_name(new_name)
+         if !ls_all_groups.iter().any(|grp| grp.name().eq(&new_name)) {
+            if group.change_name(new_name)? {
+               Ok(self.group_from_name(gname))
+            } else {
+               Ok(None)
+            }
          } else {
-            Ok(false)
+            Ok(None)
          }
       } else {
-         Ok(false)
+         Ok(None)
       }
    }
 
    /// This method is used to set/change list of members of the group by specified group name.
-   pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<bool, Error> {
-      let mut res = false;
+   pub fn change_group_members<T: AsRef<str>>(&mut self, gname: T, ls_members: Vec<&str>) -> Result<Option<&Group>, Error> {
       let gname = to_account_name(gname);
       if let Some(group) = self.get_mut_group(&gname) {
          group.change_membership(ls_members)?;
-         res = true;
+         Ok(self.group_from_name(gname))
+      } else {
+         Ok(None)
       }
-      Ok(res)
    }
 
    /// This method is used to return a list of users of a group by specified group name, or None if not found.
@@ -211,6 +219,11 @@ impl UsersGroupsManager {
    /// This method is used to return current running user UID.
    pub fn current_uid(&self) -> u16 {
       self.curr_uid
+   }
+
+   /// This method is used to return current running user instance.
+   pub fn current_user(&self) -> Option<&User> {
+      self.ls_users.iter().find(|usr| usr.uid().eq(&self.curr_uid))
    }
 
    /// This method is used to return all user accounts and system accounts available on system.
@@ -346,13 +359,11 @@ mod test {
       const NEW_GRP_NAME: &'static str = "test_group";
 
       let mut usr_mn = UsersGroupsManager::new()?;
-      if usr_mn.create_group(GRP_NAME)? {
+      if let Some(_) = usr_mn.create_group(GRP_NAME)? {
          println!("--> created group {}", GRP_NAME);
-         if usr_mn.change_group_name(GRP_NAME, NEW_GRP_NAME)? {
+         if let Some(grp) = usr_mn.change_group_name(GRP_NAME, NEW_GRP_NAME)? {
             println!("--> changed group name from {} to {}", GRP_NAME, NEW_GRP_NAME);
-            if let Some(grp) = usr_mn.group_from_name(NEW_GRP_NAME) {
-               assert_eq!(grp.formatted_name(), to_formatted_name(NEW_GRP_NAME));
-            }
+            assert_eq!(grp.formatted_name(), to_formatted_name(NEW_GRP_NAME));
             if usr_mn.delete_group(NEW_GRP_NAME)? {
                println!("--> deleted group {}", NEW_GRP_NAME);
                println!("--> listing groups: \n{:#?}", usr_mn.list_groups());
@@ -374,25 +385,19 @@ mod test {
       const NEW_USR_NAME: &'static str = "user_test";
 
       let mut usr_mn = UsersGroupsManager::new()?;
-      if usr_mn.create_user("Test", USR_NAME, AccountType::default(), "1111", "1111")? {
+      if let Some(usr) = usr_mn.create_user("Test", USR_NAME, AccountType::default(), "1111", "1111")? {
          println!("--> created user {}", USR_NAME);
-         if let Some(usr) = usr_mn.user_from_name(USR_NAME) {
-            assert_eq!(usr.home_dir(), &std::path::Path::new("/home").join(USR_NAME));
-         }
-         if usr_mn.change_user_type(USR_NAME, AccountType::Admin)? {
+         assert_eq!(usr.home_dir(), &std::path::Path::new("/home").join(USR_NAME));
+         if let Some(usr) = usr_mn.change_user_type(USR_NAME, AccountType::Admin)? {
             println!("--> changed type user {} to {}", USR_NAME, AccountType::Admin);
-            if let Some(usr) = usr_mn.user_from_name(USR_NAME) {
-               assert_eq!(usr.account_type(), AccountType::Admin);
-            }
-            if usr_mn.change_user_info(USR_NAME, "1005", "users", "User Test", NEW_USR_NAME, "/bin/zsh", "/home/user")? {
+            assert_eq!(usr.account_type(), AccountType::Admin);
+            if let Some(usr) = usr_mn.change_user_info(USR_NAME, "1005", "users", "User Test", NEW_USR_NAME, "/bin/zsh", "/home/user")? {
                println!("--> changed user name from {} to {}", USR_NAME, NEW_USR_NAME);
-               if let Some(usr) = usr_mn.user_from_name(USR_NAME) {
-                  assert_eq!(usr.username(), NEW_USR_NAME);
-                  assert_eq!(usr.uid(), 1005);
-                  assert_eq!(usr.fullname(), "User Test");
-                  assert_eq!(usr.login_shell().to_str().unwrap(), "/bin/zsh");
-                  assert_eq!(usr.home_dir().to_str().unwrap(), "/home/user");
-               }
+               assert_eq!(usr.username(), NEW_USR_NAME);
+               assert_eq!(usr.uid(), 1005);
+               assert_eq!(usr.fullname(), "User Test");
+               assert_eq!(usr.login_shell().to_str().unwrap(), "/bin/zsh");
+               assert_eq!(usr.home_dir().to_str().unwrap(), "/home/user");
                if usr_mn.delete_user(USR_NAME, true)? {
                   println!("--> deleted user {}", USR_NAME);
                   match usr_mn.group_from_name(NEW_USR_NAME) {
