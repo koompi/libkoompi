@@ -64,7 +64,7 @@ impl User {
    }
 
    /// This method is used to toggle account type of the user and return a message. 
-   pub fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
+   pub(super) fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
       let opt = match account_type {
          AccountType::User => "-d",
          AccountType::Admin => "-a",

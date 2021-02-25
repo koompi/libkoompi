@@ -55,15 +55,15 @@ impl UsersGroupsManager {
       Ok(res)
    }
 
-   // /// This method is used to change user account type by specified username and account type.
-   // pub fn change_user_type<T: AsRef<str>>(&mut self, usrname: T, account_type: AccountType) -> Result<bool, Error> {
-   //    let mut res = false;
-   //    if let Some(usr) = self.get_mut_user(usrname) {
-   //       usr.change_account_type(account_type)?;
-   //       res = true;
-   //    }
-   //    Ok(res)
-   // }
+   /// This method is used to change user account type by specified username and account type.
+   pub fn change_user_type<T: AsRef<str>>(&mut self, usrname: T, account_type: AccountType) -> Result<bool, Error> {
+      let mut res = false;
+      if let Some(usr) = self.get_mut_user(usrname) {
+         usr.change_account_type(account_type)?;
+         res = true;
+      }
+      Ok(res)
+   }
 
    /// This method is used to change user account information by specified username.
    pub fn change_user_info<T: AsRef<str>, P: AsRef<Path>>(&mut self, usrname: T, uid: T, gname: T, fullname: T, login_name: T, login_shell: P, home_dir: P) -> Result<bool, Error> {
