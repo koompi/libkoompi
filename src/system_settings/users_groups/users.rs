@@ -134,15 +134,14 @@ impl User {
 
    /// This method is used to delete this user account from database.
    pub(super) fn delete(&mut self, delete_home_dir: bool) -> Result<(), Error> {
+      let mut args = vec![USER_DEL];
       if delete_home_dir {
-      // let mut args = if std::path::PathBuf::from(&self.home_dir).exists() {
-      //    vec!["-r"]
-      // } else {
-      //    Vec::new()
-      // };
-      // args.extend(vec![USER_DEL, self.username()]);
+         if std::path::PathBuf::from(&self.home_dir).exists() {
+            args.push("-r");
+         }
       }
-      exec_cmd(PKEXEC, vec![USER_DEL, self.username()])?;
+      args.push(&self.usrname);
+      exec_cmd(PKEXEC, args)?;
       Ok(())
    }
 

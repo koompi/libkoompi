@@ -38,9 +38,9 @@ impl UsersGroupsManager {
    /// This method is used to initialize Users & Groups manager.
    pub fn new() -> Result<Self, Error> {
       let mut ug_mn = Self::default();
+      ug_mn.load_curr_user()?;
       ug_mn.load_users()?;
       ug_mn.load_groups()?;
-      ug_mn.load_curr_user()?;
       ug_mn.load_login_shells()?;
       Ok(ug_mn)
    }
@@ -325,38 +325,84 @@ impl UsersGroupsManager {
 
 #[cfg(test)]
 mod test {
-   use super::{UsersGroupsManager, AccountType};
+   use super::UsersGroupsManager;
    use std::io::Error;
+   use crate::helpers::to_formatted_name;
 
    #[test]
    fn test_users_manager() -> Result<(), Error> {
-      match UsersGroupsManager::new() {
-         Ok(mut usr_mn) => {
-            if usr_mn.create_group("test")? {
-               println!("successfully create test group");
-               if usr_mn.create_user("Test User", "test", AccountType::default(), "123", "123")? {
-                  println!("successfully create test user");
-                  if usr_mn.delete_user("test", false)? {
-                     println!("successfully delete test user");
-                     if usr_mn.delete_group("test")? {
-                        println!("successfully delete test group");
-                     } else {
-                        println!("can not delete group -- group name is not existing -- try again with new name");
-                     }
-                  } else { 
-                     println!("can not delete user -- user name is not existing -- try again with new name");
-                  }
-               } else { 
-                  println!("can not create user -- user name is existing -- try again with new name");
-               }
-            } else {
-               println!("can not create group -- group name is existing -- try again with new name");
-            }
-            println!("{:#?}", usr_mn.list_groups()); 
-         },
-         Err(err) => eprintln!("{:?}", err)
+      let usr_mn = UsersGroupsManager::new()?; 
+      println!("{:#?}", usr_mn.list_users());
+      if let Ok(uid) = std::env::var("UID") {
+         assert_eq!(usr_mn.current_uid(), uid.parse().unwrap());
       }
-      assert_eq!(true, false);
+      assert_eq!(1, 0);
       Ok(())
    }
+
+   // #[test]
+   // fn test_crud_group() -> Result<(), Error> {
+   //    const GRP_NAME: &'static str = "test";
+   //    const NEW_GRP_NAME: &'static str = "test_group";
+
+   //    let mut usr_mn = UsersGroupsManager::new()?;
+   //    if usr_mn.create_group(GRP_NAME)? {
+   //       println!("--> created group {}", GRP_NAME);
+   //       if usr_mn.change_group_name(GRP_NAME, NEW_GRP_NAME)? {
+   //          println!("--> changed group name from {} to {}", GRP_NAME, NEW_GRP_NAME);
+   //          if let Some(grp) = usr_mn.group_from_name(NEW_GRP_NAME) {
+   //             assert_eq!(grp.formatted_name(), to_formatted_name(NEW_GRP_NAME));
+   //          }
+   //          if usr_mn.delete_group(NEW_GRP_NAME)? {
+   //             println!("--> deleted group {}", NEW_GRP_NAME);
+   //             println!("--> listing groups: \n{:#?}", usr_mn.list_groups());
+   //             match usr_mn.group_from_name(NEW_GRP_NAME) {
+   //                Some(_) => assert_eq!(true, false),
+   //                None => assert_eq!(true, true),
+   //             }
+   //          }
+   //       } 
+   //    }
+   //    Ok(())
+   // }
+
+   // #[test]
+   // fn test_crud_user() -> Result<(), Error> {
+   //    use super::AccountType;
+
+   //    const USR_NAME: &'static str = "test";
+   //    const NEW_USR_NAME: &'static str = "user_test";
+
+   //    let mut usr_mn = UsersGroupsManager::new()?;
+   //    if usr_mn.create_user("Test", USR_NAME, AccountType::default(), "1111", "1111")? {
+   //       println!("--> created user {}", USR_NAME);
+   //       if let Some(usr) = usr_mn.user_from_name(USR_NAME) {
+   //          assert_eq!(usr.home_dir(), &std::path::Path::new("/home").join(USR_NAME));
+   //       }
+   //       if usr_mn.change_user_type(USR_NAME, AccountType::Admin)? {
+   //          println!("--> changed type user {} to {}", USR_NAME, AccountType::Admin);
+   //          if let Some(usr) = usr_mn.user_from_name(USR_NAME) {
+   //             assert_eq!(usr.account_type(), AccountType::Admin);
+   //          }
+   //          if usr_mn.change_user_info(USR_NAME, "1005", "users", "User Test", NEW_USR_NAME, "/bin/zsh", "/home/user")? {
+   //             println!("--> changed user name from {} to {}", USR_NAME, NEW_USR_NAME);
+   //             if let Some(usr) = usr_mn.user_from_name(USR_NAME) {
+   //                assert_eq!(usr.username(), NEW_USR_NAME);
+   //                assert_eq!(usr.uid(), 1005);
+   //                assert_eq!(usr.fullname(), "User Test");
+   //                assert_eq!(usr.login_shell().to_str().unwrap(), "/bin/zsh");
+   //                assert_eq!(usr.home_dir().to_str().unwrap(), "/home/user");
+   //             }
+   //             if usr_mn.delete_user(USR_NAME, true)? {
+   //                println!("--> deleted user {}", USR_NAME);
+   //                match usr_mn.group_from_name(NEW_USR_NAME) {
+   //                   Some(_) => assert_eq!(true, false),
+   //                   None => assert_eq!(true, true),
+   //                }
+   //             }
+   //          }
+   //       }
+   //    }
+   //    Ok(())
+   // }
 }
