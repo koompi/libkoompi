@@ -128,6 +128,7 @@ impl User {
    pub(super) fn change_groups(&mut self, ls_grps: Vec<&str>) -> Result<(), Error> {
       let grps_str = ls_grps.join(",");
       exec_cmd(PKEXEC, vec![USER_MOD, "-a", "-G", &grps_str, &self.usrname])?;
+      self.groups = ls_grps.into_iter().map(ToOwned::to_owned).collect();
       Ok(())
    }
 
