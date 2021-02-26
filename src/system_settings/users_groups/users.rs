@@ -10,6 +10,7 @@ const USER_ADD: &str = "useradd";
 const USER_MOD: &str = "usermod";
 const USER_DEL: &str = "userdel";
 const GROUPS: &str = "groups";
+const PROFILE_ROOT_PATH: &str = "/var/lib/AccountsService/icons";
 
 /// Structure of User Account
 #[derive(Debug, Clone, Default)]
@@ -51,20 +52,23 @@ impl User {
       let fullname = iter.next().unwrap();
       let home_dir = iter.next().unwrap();
       let login_shell = iter.next().unwrap();
+      let groups = match exec_cmd(GROUPS, vec![usrname.as_ref()]) {
+         Ok(output) => get_list_by_sep(&output, " "),
+         Err(_) => Vec::new()
+      };
 
       Self {
-         uid, gid, 
+         uid, gid, groups,
          fullname: fullname.to_string(), 
          usrname: usrname.clone(), 
          login_shell: PathBuf::from(&login_shell.to_string()), 
          home_dir: PathBuf::from(&home_dir.to_string()), 
          acc_type: if ls_admin.contains(&usrname.as_str()) {AccountType::Admin} else {AccountType::User},
-         ..Self::default()
       }
    }
 
    /// This method is used to toggle account type of the user and return a message. 
-   pub fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
+   pub(super) fn change_account_type(&mut self, account_type: AccountType) -> Result<(), Error> {
       let opt = match account_type {
          AccountType::User => "-d",
          AccountType::Admin => "-a",
@@ -120,6 +124,14 @@ impl User {
       Ok(())
    }
 
+   /// This method is used to change secondary groups.
+   pub(super) fn change_groups(&mut self, ls_grps: Vec<&str>) -> Result<(), Error> {
+      let grps_str = ls_grps.join(",");
+      exec_cmd(PKEXEC, vec![USER_MOD, "-a", "-G", &grps_str, &self.usrname])?;
+      self.groups = ls_grps.into_iter().map(ToOwned::to_owned).collect();
+      Ok(())
+   }
+
    /// This method is used to check whether this user has permission to reset other users account's password.
    pub fn is_admin(&self) -> bool {
       self.acc_type == AccountType::Admin
@@ -133,22 +145,14 @@ impl User {
 
    /// This method is used to delete this user account from database.
    pub(super) fn delete(&mut self, delete_home_dir: bool) -> Result<(), Error> {
+      let mut args = vec![USER_DEL];
       if delete_home_dir {
-      // let mut args = if std::path::PathBuf::from(&self.home_dir).exists() {
-      //    vec!["-r"]
-      // } else {
-      //    Vec::new()
-      // };
-      // args.extend(vec![USER_DEL, self.username()]);
+         if std::path::PathBuf::from(&self.home_dir).exists() {
+            args.push("-r");
+         }
       }
-      exec_cmd(PKEXEC, vec![USER_DEL, self.username()])?;
-      Ok(())
-   }
-
-   /// This method is used to fetch list of groups of the user account.
-   pub fn fetch_groups(&mut self) -> Result<(), Error> {
-      let stdout = exec_cmd(GROUPS, vec![self.username()])?;
-      self.groups = get_list_by_sep(&stdout, " ");
+      args.push(&self.usrname);
+      exec_cmd(PKEXEC, args)?;
       Ok(())
    }
 
@@ -195,5 +199,10 @@ impl User {
    /// This method is return List of group name. Note: You need to call fetch_groups method first.
    pub fn groups(&self) -> &[String] {
       self.groups.as_slice()
+   }
+
+   /// This method is return profile picture path.
+   pub fn profile_path(&self) -> PathBuf {
+      PathBuf::from(PROFILE_ROOT_PATH).join(&self.usrname)
    }
 }
