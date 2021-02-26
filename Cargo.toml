@@ -22,7 +22,7 @@ itertools = "0.10"
 libpulse-binding = {version = "2.23.0", features= ["pa_v5", "pa_v14"]}
 titlecase = "1.1.0"
 uuid = "0.8.1"
-tokio = "1.0.1"
+tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread", "time"] }
 dbus-tokio = "0.7.3"
 serde_derive = "1.0.118"
 serde-xml-rs = "0.4.0"
@@ -33,4 +33,3 @@ async-trait = "0.1.42"
 [dev-dependencies]
 eyre = "0.6.5"
 pretty_env_logger = "0.4.0"
-tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread", "time"] }
