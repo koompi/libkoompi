@@ -118,6 +118,17 @@ impl UsersGroupsManager {
       }
    }
 
+   /// This method is used to change secondary groups by specified username.
+   pub fn change_user_groups<T: AsRef<str>>(&mut self, usrname: T, ls_grps: Vec<&str>) -> Result<Option<User>, Error> {
+      let usrname = to_account_name(usrname);
+      if let Some(usr) = self.get_mut_user(&usrname) {
+         usr.change_groups(ls_grps)?;
+         Ok(Some(usr.clone()))
+      } else {
+         Ok(None)
+      }
+   }
+
    /// This method is used to reset user password by specified username and password.
    pub fn reset_user_password<T: AsRef<str>>(&mut self, usrname: T, pwd: T, verify_pwd: T) -> Result<Option<User>, Error> {
       let usrname = to_account_name(usrname);

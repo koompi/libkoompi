@@ -52,15 +52,18 @@ impl User {
       let fullname = iter.next().unwrap();
       let home_dir = iter.next().unwrap();
       let login_shell = iter.next().unwrap();
+      let groups = match exec_cmd(GROUPS, vec![usrname.as_ref()]) {
+         Ok(output) => get_list_by_sep(&output, " "),
+         Err(_) => Vec::new()
+      };
 
       Self {
-         uid, gid, 
+         uid, gid, groups,
          fullname: fullname.to_string(), 
          usrname: usrname.clone(), 
          login_shell: PathBuf::from(&login_shell.to_string()), 
          home_dir: PathBuf::from(&home_dir.to_string()), 
          acc_type: if ls_admin.contains(&usrname.as_str()) {AccountType::Admin} else {AccountType::User},
-         ..Self::default()
       }
    }
 
@@ -121,6 +124,13 @@ impl User {
       Ok(())
    }
 
+   /// This method is used to change secondary groups.
+   pub(super) fn change_groups(&mut self, ls_grps: Vec<&str>) -> Result<(), Error> {
+      let grps_str = ls_grps.join(",");
+      exec_cmd(PKEXEC, vec![USER_MOD, "-a", "-G", &grps_str, &self.usrname])?;
+      Ok(())
+   }
+
    /// This method is used to check whether this user has permission to reset other users account's password.
    pub fn is_admin(&self) -> bool {
       self.acc_type == AccountType::Admin
@@ -142,13 +152,6 @@ impl User {
       }
       args.push(&self.usrname);
       exec_cmd(PKEXEC, args)?;
-      Ok(())
-   }
-
-   /// This method is used to fetch list of groups of the user account.
-   pub fn fetch_groups(&mut self) -> Result<(), Error> {
-      let stdout = exec_cmd(GROUPS, vec![self.username()])?;
-      self.groups = get_list_by_sep(&stdout, " ");
       Ok(())
    }
 
