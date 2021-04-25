@@ -36,7 +36,7 @@ pub trait DeviceControl<T> {
     fn get_device_by_index(&mut self, index: u32) -> Result<T, ControllerError>;
     fn get_device_by_name(&mut self, name: &str) -> Result<T, ControllerError>;
     fn set_device_volume_by_index(&mut self, index: u32, volume: f64);
-    fn set_device_volume_by_name(&mut self, name: &str, volume: f64);
+    fn set_device_volume_by_name(&mut self, name: &str, volume: f64) -> Result<(), ControllerError>;
     fn increase_device_volume_by_percent(&mut self, index: u32, delta: f64);
     fn decrease_device_volume_by_percent(&mut self, index: u32, delta: f64);
     fn get_volume(&mut self) -> Result<Vec<String>, ControllerError>;
@@ -275,12 +275,17 @@ impl DeviceControl<DeviceInfo> for SinkController {
         let op = self.handler.introspect.set_sink_volume_by_index(index, &volumes, None);
         self.handler.wait_for_operation(op).expect("error");
     }
-    fn set_device_volume_by_name(&mut self, name: &str, volume: f64) {
+    fn set_device_volume_by_name(&mut self, name: &str, volume: f64) -> Result<(), ControllerError> {
         let new_volume = Volume::from(Volume(volume_from_percent(volume) as u32));
-        let mut dev_ref = self.get_device_by_name(name).expect("Could not find device specified");
-        let volumes = dev_ref.volume.scale(new_volume).unwrap();
-        let op = self.handler.introspect.set_sink_volume_by_name(name, volumes, None);
-        self.handler.wait_for_operation(op).expect("error");
+        match self.get_device_by_name(name) {
+            Ok(mut dev_ref) => {
+                let volumes = dev_ref.volume.scale(new_volume).unwrap();
+                let op = self.handler.introspect.set_sink_volume_by_name(name, volumes, None);
+                self.handler.wait_for_operation(op).expect("error");
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
     fn increase_device_volume_by_percent(&mut self, index: u32, delta: f64) {
         let mut dev_ref = self.get_device_by_index(index).expect("Could not find device specified");
@@ -598,12 +603,17 @@ impl DeviceControl<DeviceInfo> for SourceController {
         let op = self.handler.introspect.set_source_volume_by_index(index, volumes, None);
         self.handler.wait_for_operation(op).expect("error");
     }
-    fn set_device_volume_by_name(&mut self, name: &str, volume: f64) {
+    fn set_device_volume_by_name(&mut self, name: &str, volume: f64) -> Result<(), ControllerError> {
         let new_volume = Volume::from(Volume(volume_from_percent(volume) as u32));
-        let mut dev_ref = self.get_device_by_name(name).expect("Could not find device specified");
-        let volumes = dev_ref.volume.scale(new_volume).unwrap();
-        let op = self.handler.introspect.set_source_volume_by_name(name, volumes, None);
-        self.handler.wait_for_operation(op).expect("error");
+        match self.get_device_by_name(name) {
+            Ok(mut dev_ref) => {
+                let volumes = dev_ref.volume.scale(new_volume).unwrap();
+                let op = self.handler.introspect.set_source_volume_by_name(name, volumes, None);
+                self.handler.wait_for_operation(op).expect("error");
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
     fn increase_device_volume_by_percent(&mut self, index: u32, delta: f64) {
         let mut dev_ref = self.get_device_by_index(index).expect("Could not find device specified");

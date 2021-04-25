@@ -1,6 +1,6 @@
-use libkoompi::system_settings::{DeviceControl, SinkController, SoundCard, SourceController};
-use libpulse_binding::volume::Volume;
+use libkoompi::system_settings::{DeviceControl, SoundCard, SourceController};
 fn main() {
+    
     let mut handler = SourceController::create();
     let devices = handler.list_devices().expect("Device not found");
     for dev in devices.clone() {
@@ -19,9 +19,9 @@ fn main() {
                         for ports in data.ports.iter() {
                             println!("Port: {:?}", ports.description.as_ref().unwrap());
                         }
-                        // for profiles_list in data.profiles.iter() {
-                        //     println!("Profile: {:?}", profiles_list.description.as_ref().unwrap());
-                        // }
+                        for profiles_list in data.profiles.iter() {
+                            println!("Profile: {:?}", profiles_list.description.as_ref().unwrap());
+                        }
                     }
                 }
                 Err(e) => println!("Error: {:?}", e),

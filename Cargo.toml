@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dbus = "0.9.2"
+dbus = {version="0.9.2", features=['futures']}
 getset = "0.1"
 serde = { version = "1.0.120", features = ["derive"] }
 serde_json = "1.0"
@@ -24,10 +24,21 @@ itertools = "0.10"
 libpulse-binding = {version = "2.23.0", features= ["pa_v5", "pa_v14"]}
 titlecase = "1.1.0"
 lazy_static = "1.4.0"
-thiserror = "1.0.24"
 walkdir = "2.3.2"
 mime_guess = "2.0.3"
 version-compare = "0.0.11"
 xdg-mime = "0.3.2"
 configparser = "2.0.0"
 freedesktop_entry_parser = "1.1.1"
+uuid = "0.8.1"
+tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread", "time"] }
+dbus-tokio = "0.7.3"
+serde_derive = "1.0.118"
+serde-xml-rs = "0.4.0"
+thiserror = "1.0.23"
+futures = "0.3.8"
+bitflags = "1.2.1"
+async-trait = "0.1.42"
+[dev-dependencies]
+eyre = "0.6.5"
+pretty_env_logger = "0.4.0"
